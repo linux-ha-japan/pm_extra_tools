@@ -1,0 +1,71 @@
+########################################
+# Derived definitions
+########################################
+%define __check_files %{nil}
+%define debug_package %{nil}
+%define name pm_extra_tools
+%define version @VERSION@
+%define release 1%{?dist}
+#
+%define pcsgendir /usr/share/%{name}
+%define ocfextdir /usr/lib/ocf/resource.d/linuxhajp
+#
+Name:          %{name}
+Summary:       Extra Tools & Scripts for Pacemaker
+Version:       %{version}
+Release:       %{release}
+License:       GPLv2
+Group:         Applications
+Vendor:        Linux-HA Japan
+Url:           https://ja.osdn.net/projects/linux-ha/
+Packager:      Linux-HA Japan <https://ja.osdn.net/projects/linux-ha/>
+
+Source:        %{name}-%{version}.tar.gz
+Requires:      platform-python
+BuildRequires: make
+BuildRoot:     %{_tmppath}/%{name}-%{version}
+BuildArch:     noarch
+
+########################################
+%description
+Extra tools for Pacemaker and resource-agents/fence-agents.
+
+%prep
+rm -rf $RPM_BUILD_ROOT
+%setup -q
+
+%build
+%{configure}
+
+%pre
+
+%install
+make DESTDIR=$RPM_BUILD_ROOT install
+ln -sf %{pcsgendir}/pm_pcsgen.py /usr/bin/pm_pcsgen
+
+%clean
+if
+	[ -n "${RPM_BUILD_ROOT}" -a "${RPM_BUILD_ROOT}" != "/" ]
+then
+	rm -rf $RPM_BUILD_ROOT
+fi
+rm -rf $RPM_BUILD_DIR/%{name}-%{version}
+
+%post
+
+%preun
+
+%postun
+
+%files
+%defattr(-,root,root)
+
+%dir %{pcsgendir}
+%attr (755,root,root) %{pcsgendir}/pm_pcsgen.py
+%{pcsgendir}/pm_pcsgen.conf
+%{pcsgendir}/pm_pcsgen_sample.xlsx
+/usr/bin/pm_pcsgen
+
+%dir %{ocfextdir}
+%attr (755,root,root) %{ocfextdir}/pgsql
+%attr (755,root,root) %{ocfextdir}/hulft

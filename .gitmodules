@@ -1,0 +1,3 @@
+[submodule "vendor/resource-agents"]
+	path = vendor/resource-agents
+	url = https://github.com/ClusterLabs/resource-agents
