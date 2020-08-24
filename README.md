@@ -14,11 +14,8 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.0-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.1 HA Add-On / CentOS 8.1911 です。
-#### 既知の制約事項
-* pm_extra_tools-1.0-1
-  * pgsql: RHEL 8.2 HA Add-On の組み合わせでは、レプリケーション機能(PG-REX構成)が正しく動作しません。
+* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.1-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.2 HA Add-On / CentOS 8.2.2004 です。
 
 ## インストール・アンインストール
 * インストール手順
