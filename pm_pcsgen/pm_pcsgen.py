@@ -156,8 +156,8 @@ HDR_POS = 1
 PCSF = {
   Mode.NODE.value: r'{pcsf} node',
   Mode.PROP.value: r'{pcsf} property set',
-  Mode.RDEF.value: r'{pcsf} resource defaults',
-  Mode.ODEF.value: r'{pcsf} resource op defaults',
+  Mode.RDEF.value: r'{pcsf} resource defaults update',
+  Mode.ODEF.value: r'{pcsf} resource op defaults update',
   Mode.PRIM.value: r'{pcsf} resource create',
   Mode.STNT.value: r'{pcsf} stonith create',
   Mode.STLV.value: r'{pcsf} stonith level add',
@@ -1799,8 +1799,8 @@ class Gen:
   def x2p_option(self,tag):
     #
     # pcs property set <name>=<value>
-    # pcs resource defaults <name>=<value>
-    # pcs resource op defaults <name>=<value>
+    # pcs resource defaults update <name>=<value>
+    # pcs resource op defaults update <name>=<value>
     #
     s = []
     for x in [x for y in self.root.getElementsByTagName(tag) for x in y.childNodes]:
