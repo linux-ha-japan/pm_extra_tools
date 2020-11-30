@@ -1672,20 +1672,16 @@ class Gen:
       if log.lv >= log.INFO: log.error(f'{m}')
       else:                  log.error_l(f'{m}')
       log.error_r(fmtmsg(output))
-      log.info_r('\n')
     def warn(output):
       if log.lv >= log.INFO: log.warn(f'{m}')
       else:                  log.warn_l(f'{m}')
       log.warn_r(fmtmsg(output))
-      log.info_r('\n')
     def info(output,msg=None):
       log.info('%s%s'%(m,(f' {msg}') if msg else ''))
       log.info_r(fmtmsg(output))
-      log.info_r('\n')
     def debug(output,msg=None):
       log.debug('%s%s'%(m,(f' {msg}') if msg else ''))
       log.debug_r(fmtmsg(output))
-      log.debug_r('\n')
     try:
       log.lno = lno
       log.info_l(f'[コマンド_実行] {cmd}')
