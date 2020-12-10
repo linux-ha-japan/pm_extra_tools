@@ -156,8 +156,8 @@ HDR_POS = 1
 PCSF = {
   Mode.NODE.value: r'{pcsf} node',
   Mode.PROP.value: r'{pcsf} property set',
-  Mode.RDEF.value: r'{pcsf} resource defaults',
-  Mode.ODEF.value: r'{pcsf} resource op defaults',
+  Mode.RDEF.value: r'{pcsf} resource defaults update',
+  Mode.ODEF.value: r'{pcsf} resource op defaults update',
   Mode.PRIM.value: r'{pcsf} resource create',
   Mode.STNT.value: r'{pcsf} stonith create',
   Mode.STLV.value: r'{pcsf} stonith level add',
@@ -1672,20 +1672,16 @@ class Gen:
       if log.lv >= log.INFO: log.error(f'{m}')
       else:                  log.error_l(f'{m}')
       log.error_r(fmtmsg(output))
-      log.info_r('\n')
     def warn(output):
       if log.lv >= log.INFO: log.warn(f'{m}')
       else:                  log.warn_l(f'{m}')
       log.warn_r(fmtmsg(output))
-      log.info_r('\n')
     def info(output,msg=None):
       log.info('%s%s'%(m,(f' {msg}') if msg else ''))
       log.info_r(fmtmsg(output))
-      log.info_r('\n')
     def debug(output,msg=None):
       log.debug('%s%s'%(m,(f' {msg}') if msg else ''))
       log.debug_r(fmtmsg(output))
-      log.debug_r('\n')
     try:
       log.lno = lno
       log.info_l(f'[コマンド_実行] {cmd}')
@@ -1694,21 +1690,29 @@ class Gen:
       if p.returncode != 0:
         error(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8))
         return False
-      for (k,x) in self.filter.items():
-        c = x.get('targetcommand',None)
-        if c and re.search(r'%s'%(re.sub('\'','\\\'',c)),cmd) is not None:
-          i,d = x.get('filtertoinfo',None),x.get('filtertodebug',None)
-          if i and re.search(r'%s'%(re.sub('\'','\\\'',i)),p.stdout.decode(U8)) is not None:
-            log.debug(f'[{k}]の設定({CONF})によりpcsのメッセージをフィルタリングします')
-            info(p.stdout.decode(U8),x.get('filterreason',None))
-            return True
-          elif d and re.search(r'%s'%(re.sub('\'','\\\'',d)),p.stdout.decode(U8)) is not None:
-            debug(p.stdout.decode(U8),x.get('filterreason',None))
-            return True
-      if re.match(r'warning: ',p.stdout.decode(U8),flags=re.I) is not None:
-        warn(p.stdout.decode(U8))
-      elif p.stdout:
-        info(p.stdout.decode(U8))
+      f,n = [],[]
+      for s in p.stdout.decode(U8).splitlines():
+        for (k,x) in self.filter.items():
+          c = x.get('targetcommand',None)
+          if c and re.search(r'%s'%(re.sub('\'','\\\'',c)),cmd) is not None:
+            i,d = x.get('filtertoinfo',None),x.get('filtertodebug',None)
+            if (i and re.search(r'%s'%(re.sub('\'','\\\'',i)),s) is not None or
+                d and re.search(r'%s'%(re.sub('\'','\\\'',d)),s) is not None):
+              f.append((k,s))
+              break
+        else:
+          n.append(s)
+      for (k,x) in f:
+        if self.filter[k].get('filtertoinfo',None):
+          log.debug(f'[{k}]の設定({CONF})によりpcsのメッセージをフィルタリングします')
+          info(x,self.filter[k].get('filterreason',None))
+        else:
+          debug(x,self.filter[k].get('filterreason',None))
+      x = '\n'.join(n)
+      if re.match(r'warning: ',x,flags=re.I) is not None:
+        warn(x)
+      elif x:
+        info(x)
       return True
     except Exception as e:
       log.innererr('CIBファイルの出力に失敗しました',e)
@@ -1799,8 +1803,8 @@ class Gen:
   def x2p_option(self,tag):
     #
     # pcs property set <name>=<value>
-    # pcs resource defaults <name>=<value>
-    # pcs resource op defaults <name>=<value>
+    # pcs resource defaults update <name>=<value>
+    # pcs resource op defaults update <name>=<value>
     #
     s = []
     for x in [x for y in self.root.getElementsByTagName(tag) for x in y.childNodes]:
