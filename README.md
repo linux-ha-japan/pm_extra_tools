@@ -14,8 +14,8 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.1-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.2 HA Add-On / CentOS 8.2.2004 です。
+* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.2-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.3 HA Add-On / CentOS 8.3.2011 です。
 
 ## インストール・アンインストール
 * インストール手順
@@ -89,7 +89,7 @@ Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツール�
   # pcs cluster start --all
 
   (5)
-  # pcs cluster cib-push pgsql-ipmi.csv
+  # pcs cluster cib-push pgsql-ipmi.xml
   ```
   </div></details>
 
@@ -140,6 +140,7 @@ HULFTの 配信デーモン(hulsndd) / 集信デーモン(hulrcvd) / 要求受�
 ## 補足事項
 #### クラスタの構築手順などはこちらの資料を参照ください。
 * [Linux-HA Japan プロジェクト](https://linux-ha.osdn.jp/wp/) > [OSC2020 Tokyo/Spring セミナー資料](https://linux-ha.osdn.jp/wp/archives/4942)
+* [Linux-HA Japan プロジェクト](https://linux-ha.osdn.jp/wp/) > [OSC2020 Tokyo/Fall セミナー資料](https://linux-ha.osdn.jp/wp/archives/4970)
 * [ClusterLabs website > Pacemaker Documentation](https://clusterlabs.org/pacemaker/doc/)
 <br>
 以上
