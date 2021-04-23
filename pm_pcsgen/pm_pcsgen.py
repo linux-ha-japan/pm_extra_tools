@@ -3,7 +3,7 @@
 
 # pm_pcsgen : Pacemaker CIB(xml) and PCS(sh) generator
 #
-# Copyright (C) 2020 NIPPON TELEGRAPH AND TELEPHONE CORPORATION
+# Copyright (C) 2020-2021 NIPPON TELEGRAPH AND TELEPHONE CORPORATION
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -261,7 +261,7 @@ class Gen:
       description=f"To set 'cluster node (NODE table)', cluster must be live.\n{d}",
       prog='pm_pcsgen',
       formatter_class=argparse.RawTextHelpFormatter)
-    p.add_argument('-$','--version',action='version',version='1.1',
+    p.add_argument('-$','--version',action='version',version='1.2',
       help='Print %(prog)s version information.')
     p.add_argument('-V','--verbose',action='count',dest='loglv',default=Log.WARN,
       help='Increase debug output.')
@@ -1643,11 +1643,6 @@ class Gen:
       elif not self.xml_get_childs(x,['rsc']):
         log.fmterr_l(f'{x.nodeName}リソース「id: {id}」にリソースが設定されていません',
           x.getAttribute(ATTR_C))
-      elif x.nodeName == Mode.CLNE.value or x.nodeName == Mode.PROM.value:
-        expect = '%s-clone'%(self.xml_get_childs(x,['rsc'])[0].getAttribute('id'))
-        if id != expect:
-          log.fmterr_l(f'{x.nodeName}リソースのIDには「{expect}」を設定してください',
-            x.getAttribute(ATTR_C))
 
   def xml_chk_location_rule(self):
     for x in [x for y in self.root.getElementsByTagName(Mode.LOCR.value)
@@ -1893,8 +1888,8 @@ class Gen:
   def x2p_rsc_advanced(self,node):
     #
     # pcs resource group add <group id> <resource id>...
-    # pcs resource clone <resource id | group id>
-    # pcs resource promotable <resource id | group id>
+    # pcs resource clone <resource id | group id> <clone id>
+    # pcs resource promotable <resource id | group id> <clone id>
     #  +
     # pcs resource meta <group id | clone id> <name>=<value>
     #
@@ -1903,6 +1898,8 @@ class Gen:
       z.append(node.getAttribute('id'))
     for x in [x for x in node.childNodes if x.nodeName == 'rsc']:
       z.append(x.getAttribute('id'))
+    if node.nodeName == Mode.CLNE.value or node.nodeName == Mode.PROM.value:
+      z.append(node.getAttribute('id'))
     s.append(CMNT[node.nodeName])
     s.append('%s %s'%(PCSF[node.nodeName],' '.join(z)))
     self.run_pcs(s[-1],node.getAttribute(ATTR_C))
