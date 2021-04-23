@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT(pm_extra_tools, 1.2)
+AC_INIT(pm_extra_tools, 1.3)
 AM_INIT_AUTOMAKE
 
 # Checks for programs.
