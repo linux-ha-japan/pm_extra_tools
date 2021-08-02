@@ -2,7 +2,7 @@
 
 # pm_extra_tools: Pacemaker-2.0系追加パッケージ
 
-Copyright (c) 2020 Linux-HA Japan Project
+Copyright (c) 2020-2021 Linux-HA Japan Project
 
 ## はじめに
 Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
@@ -14,8 +14,8 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.2-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.3 HA Add-On / CentOS 8.3.2011 です。
+* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.3-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.4 HA Add-On / CentOS 8.4.2105 です。
 
 ## インストール・アンインストール
 * インストール手順
@@ -113,7 +113,6 @@ Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツール�
   |:---:|---|---|---|
   | 1-1 | NODE | type | attribute \| utilization |
   | 4-1 | RESOURCES | resourceItem | Primitive \| Stonith \| Group \| **Clone</u> \| Promotable** |
-  | | | id | resourceItemの値が **Clone または Promotable** の場合 :<br>・```<Clone対象のリソースID>```＋```-clone```<br>・```<Promotable対象のリソースID>```＋```-clone``` |
   | 7-1 | PRIMITIVE | class<br>provider<br>type <sup>[※1](#note1)</sup> | それぞれ以下のコマンドで確認できます。<br>```# pcs resource standards```<br>```# pcs resource providers```<br>```# pcs resource agents [standard[:provider]]``` |
   | | | type <sup>[※2](#note2)</sup> | options \| meta \| utilization |
   | 8-1 | STONITH | type <sup>[※1](#note1)</sup> | 以下のコマンドで確認できます。<br>```# pcs stonith list``` |
