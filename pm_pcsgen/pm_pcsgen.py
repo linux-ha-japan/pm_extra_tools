@@ -250,12 +250,10 @@ class Gen:
   def parse_option(self):
     import argparse
     import pathlib
-    sep = r':'
-    i = f'<XLS_FILE{sep}SheetName | CSV_FILE>' if import_xlrd else 'CSV_FILE'
-    x = '<SheetName>.xml | <CSV_FILE>.xml' if import_xlrd else '<CSV_FILE>.xml'
-    s = '<SheetName>.sh | <CSV_FILE>.sh' if import_xlrd else '<CSV_FILE>.sh'
-    d = 'Support for XLS_FILE is provided as a Technology Preview.' if import_xlrd \
-          else 'CSV_FILE supports UTF-8 and Shift_JIS.'
+    i = 'CSV_FILE'
+    x = '<CSV_FILE>.xml'
+    s = '<CSV_FILE>.sh'
+    d = 'CSV_FILE supports UTF-8 and Shift_JIS.'
     p = argparse.ArgumentParser(
       usage=f'%(prog)s [options] {i}',
       description=f"To set 'cluster node (NODE table)', cluster must be live.\n{d}",
@@ -289,13 +287,12 @@ class Gen:
       return False
     log.lv = opts.loglv
     self.live = opts.live
-    self.input = args[0].split(sep)[0]
-    self.sheet = args[0].split(sep)[1] if import_xlrd and re.search(sep,args[0]) else None
-    r,e = (self.sheet,None) if self.sheet else os.path.splitext(os.path.basename(self.input))
+    self.input = args[0]
+    r,e = os.path.splitext(os.path.basename(self.input))
     self.outxml = opts.cib_file if opts.cib_file else f'{r}.xml'
     self.outsh = opts.pcs_file if opts.pcs_file else f'{r}.sh'
-    log.set_msginfo(self.sheet,self.outxml,self.outsh)
-    log.debug(f'input[{os.path.abspath(self.input)}] sheet[{self.sheet}] '
+    log.set_msginfo(self.outxml,self.outsh)
+    log.debug(f'input[{os.path.abspath(self.input)}] '
               f'outxml[{os.path.abspath(self.outxml)}] outsh[{os.path.abspath(self.outsh)}]')
     if not os.path.isfile(self.input):
       log.error(f'入力ファイル [{self.input}] が見つかりません')
@@ -528,40 +525,6 @@ class Gen:
     return RC.SUCCESS
 
   '''
-   【XLS】データから【CSV】ファイルを生成
-    [引数]
-      dir   : カレントディレクトリ
-      enc   : CSVファイルの文字コード
-    [戻り値]
-      RC.SUCCESS        : 成功
-      RC.ERROR          : エラー発生
-  '''
-  def xls2csv(self,dir,enc):
-    log.debug('[ XLS -> CSV ]処理を開始します')
-    try:
-      b = xlrd.open_workbook(self.input)
-      if self.sheet not in b.sheet_names():
-        log.error(f'シート [{self.sheet}] が見つかりません')
-        return RC.ERROR
-      x = b.sheet_by_name(self.sheet)
-      self.input = os.path.join(dir,f'{self.sheet}.csv')
-      log.debug(f'input[{self.input}]')
-      with open(self.input,'w',encoding=enc) as f:
-        for r in range(0,x.nrows):
-          l = ''
-          for c in range(0,x.ncols):
-            v = str(x.cell(r,c).value).replace('"','""')
-            if re.search(r'\n',v):
-              v = f'"{v}"'
-            l += f'{v},'
-          log.debug1(f'{l}')
-          f.write(f'{l}\n')
-      return RC.SUCCESS
-    except Exception as e:
-      log.innererr('「XLSデータからCSVファイルの作成」に失敗しました',e)
-      return RC.ERROR
-
-  '''
    【CSV】データを「全て」読み、【XML】形式で保持
     [引数]
       なし
@@ -572,31 +535,23 @@ class Gen:
   def read_csv(self):
     import tempfile
     with tempfile.TemporaryDirectory() as d:
-      enc = U8
-      if self.sheet:
-        #
-        # Support for XLS_FILE is provided as a Technology Preview.
-        #
-        if self.xls2csv(d,enc) == RC.ERROR:
-          return RC.ERROR
-      else:
-        try:
-          with open(self.input,'rb') as f:
-            from chardet.universaldetector import UniversalDetector
-            d = UniversalDetector()
-            for l in f:
-              d.feed(l)
-              if d.done:
-                break
-            d.close()
-            enc = d.result['encoding']
-            log.debug(f'CSVファイルの文字コード [{enc}]')
-        except Exception as e:
-          log.innererr('CSVファイルの読み込みに失敗しました',e)
-          return RC.ERROR
-        if not enc:
-          log.error('CSVファイルの文字コード判定に失敗しました')
-          return RC.ERROR
+      try:
+        with open(self.input,'rb') as f:
+          from chardet.universaldetector import UniversalDetector
+          d = UniversalDetector()
+          for l in f:
+            d.feed(l)
+            if d.done:
+              break
+          d.close()
+          enc = d.result['encoding']
+          log.debug(f'CSVファイルの文字コード [{enc}]')
+      except Exception as e:
+        log.innererr('CSVファイルの読み込みに失敗しました',e)
+        return RC.ERROR
+      if not enc:
+        log.error('CSVファイルの文字コード判定に失敗しました')
+        return RC.ERROR
       log.debug('[ CSV -> XML ]処理を開始します')
       with open(self.input,mode='r',newline='',encoding=enc) as f:
         import csv
@@ -2206,8 +2161,8 @@ class Log:
   def indent(self,s):
     return re.sub(r'^|(\n)',r'\1' + f'{self.indents[1]}',s.rstrip('\n')) + '\n'
 
-  def set_msginfo(self,sheet,outxml,outsh):
-    self.msginfo = ('XLS' if sheet else 'CSV',outxml,outsh)
+  def set_msginfo(self,outxml,outsh):
+    self.msginfo = ('CSV',outxml,outsh)
 
   def exit(self,rc):
     pre = ''
@@ -2327,13 +2282,5 @@ except Exception:
 
 if __name__ == '__main__':
   log = Log()
-  try:
-    import importlib
-    import_xlrd = False
-    if importlib.find_loader('xlrd'):
-      import xlrd
-      import_xlrd = True
-  except Exception:
-    pass
   gen = Gen()
   exit(gen.main())
