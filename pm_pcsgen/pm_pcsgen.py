@@ -1636,10 +1636,7 @@ class Gen:
       log.lno = lno
       log.info_l(f'[コマンド_実行] {cmd}')
       m = '[コマンド_結果]'
-      p = subprocess.run(shlex.split(cmd),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-      if p.returncode != 0:
-        error(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8))
-        return False
+      p = subprocess.run(shlex.split(cmd),stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       f,n = [],[]
       for s in p.stdout.decode(U8).splitlines():
         for (k,x) in self.filter.items():
@@ -1659,6 +1656,9 @@ class Gen:
         else:
           debug(x,self.filter[k].get('filterreason',None))
       x = '\n'.join(n)
+      if p.returncode != 0:
+        error(x)
+        return False
       if re.match(r'warning: ',x,flags=re.I) is not None:
         warn(x)
       elif x:
