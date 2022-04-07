@@ -156,8 +156,8 @@ HDR_POS = 1
 PCSF = {
   Mode.NODE.value: r'{pcsf} node',
   Mode.PROP.value: r'{pcsf} property set',
-  Mode.RDEF.value: r'{pcsf} resource defaults update',
-  Mode.ODEF.value: r'{pcsf} resource op defaults update',
+  Mode.RDEF.value: r'{pcsf} resource defaults',
+  Mode.ODEF.value: r'{pcsf} resource op defaults',
   Mode.PRIM.value: r'{pcsf} resource create',
   Mode.STNT.value: r'{pcsf} stonith create',
   Mode.STLV.value: r'{pcsf} stonith level add',
@@ -222,6 +222,8 @@ class Gen:
   xc = None         # XMLドキュメントの作業中の要素を指しておく
   lno = 0           # line no
   req_reci = False  # Alert表のrecipient列にデータが必要な状態の間、Trueを設定
+  pcs_default = 0
+  pcs_rsc_adv = 0
 
   def __init__(self):
     if not self.parse_option():
@@ -373,7 +375,7 @@ class Gen:
         self.req_reci = True
       return True
     elif (self.mode[0] == Mode.SKIP.value and
-         (x in PRIM_MODE or x in STNT_MODE or x in ALRT_MODE)):
+          (x in PRIM_MODE or x in STNT_MODE or x in ALRT_MODE)):
       log.debug_l(f'エラー検知中のためサブモード[{x}]はスキップします')
       return True
     x = MODE.get(x)
@@ -642,6 +644,9 @@ class Gen:
       # __with open(self.input,mode='r',newline='',encoding=enc) as f:
     # __with tempfile.TemporaryDirectory() as d:
     if not errflg:
+      with tempfile.TemporaryDirectory() as d:
+        if self.get_cib(os.path.join(d,"tmpxml")):
+          self.chk_pcs(os.path.join(d,"tmpxml"))
       self.xml_chk_resources()
       self.xml_chk_location_rule()
     if errflg:
@@ -1643,6 +1648,12 @@ class Gen:
       elif not self.xml_get_childs(x,['rsc']):
         log.fmterr_l(f'{x.nodeName}リソース「id: {id}」にリソースが設定されていません',
           x.getAttribute(ATTR_C))
+      elif (self.pcs_rsc_adv == 1 and
+            (x.nodeName == Mode.CLNE.value or x.nodeName == Mode.PROM.value)):
+        expect = '%s-clone'%(self.xml_get_childs(x,['rsc'])[0].getAttribute('id'))
+        if id != expect:
+          log.fmterr_l(f'{x.nodeName}リソースのIDには「{expect}」を設定してください',
+            x.getAttribute(ATTR_C))
 
   def xml_chk_location_rule(self):
     for x in [x for y in self.root.getElementsByTagName(Mode.LOCR.value)
@@ -1650,6 +1661,45 @@ class Gen:
       if x.getAttribute('bool_op') and x.childNodes.length == 1:
         log.lno = x.getAttribute(ATTR_C)
         log.warn_l(self.msg_disca_data("'bool_op'列"))
+
+  '''
+    使用可能なpcsコマンドをチェック(後方互換性維持のため)
+    [引数]
+      tmpxml : temporary cib.xml
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def chk_pcs(self,tmpxml):
+    try:
+      #
+      # self.pcs_default
+      #
+      p = subprocess.run(
+            shlex.split(f'pcs -f {tmpxml} resource defaults update migration-threshold=1'),
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+      if p.returncode == 0:
+        self.pcs_default = 2
+      else:
+        self.pcs_default = 1
+      #
+      # self.pcs_rsc_adv
+      #
+      p = subprocess.run(
+            shlex.split(f'pcs -f {tmpxml} resource create tmp ocf:pacemaker:Dummy'),
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+      if p.returncode != 0:
+        return False
+      p = subprocess.run(
+            shlex.split(f'pcs -f {tmpxml} resource clone tmp tmp-clone'),
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+      if p.returncode == 0:
+        self.pcs_rsc_adv = 2
+      else:
+        self.pcs_rsc_adv = 1
+      return True
+    except Exception as e:
+      return False
 
   '''
     コマンドを実行
@@ -1714,20 +1764,21 @@ class Gen:
       return False
 
   '''
-    ローカルcib.xmlの初期化
+    ローカルcib.xmlの取得
     [引数]
-      なし
+      outxml : ローカルcib.xmlのパス
+      node   : Node
     [戻り値]
-      not None : 初期化用のコマンド文字列(OK時)
+      not None : 取得用コマンド文字列(OK時)
           None : NG時
   '''
-  def init_cib(self):
+  def get_cib(self,outxml,node=None):
     def fmtmsg(s,cmd):
       return log.indent(f'$ {cmd}\n{s}')
     m = 'CIBファイルの出力に失敗しました'
     try:
-      if [x for x in self.root.getElementsByTagName(Mode.NODE.value) if x.childNodes] or self.live:
-        c = f'pcs cluster cib {self.outxml}'
+      if node and [x for x in node.getElementsByTagName(Mode.NODE.value) if x.childNodes] or self.live:
+        c = f'pcs cluster cib {outxml}'
         log.debug(f'[コマンド_実行] {c}')
         p = subprocess.run(shlex.split(c),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if p.returncode != 0:
@@ -1743,9 +1794,9 @@ class Gen:
           log.error(f'{m}')
           log.error_r(fmtmsg(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8),c))
           return
-        with open(self.outxml,"w",encoding=U8) as f:
+        with open(outxml,"w",encoding=U8) as f:
           f.write(p.stdout.decode(U8))
-        return f'{c} > {self.outxml}\n'
+        return f'{c} > {outxml}\n'
     except Exception as e:
       log.innererr(f'{m}',e)
 
@@ -1758,15 +1809,15 @@ class Gen:
           None : NG時
   '''
   def xml2pcs(self):
-    cib = self.init_cib()
+    cib = self.get_cib(self.outxml,self.root)
     if not cib:
       return
     s = [
       cib,
       self.x2p_node(),
       self.x2p_option(Mode.PROP.value),
-      self.x2p_option(Mode.RDEF.value),
-      self.x2p_option(Mode.ODEF.value),
+      self.x2p_default(Mode.RDEF.value),
+      self.x2p_default(Mode.ODEF.value),
       self.x2p_resources(),
       self.x2p_stonith_lv(),
       self.x2p_location(),
@@ -1798,12 +1849,30 @@ class Gen:
   def x2p_option(self,tag):
     #
     # pcs property set <name>=<value>
-    # pcs resource defaults update <name>=<value>
-    # pcs resource op defaults update <name>=<value>
     #
     s = []
     for x in [x for y in self.root.getElementsByTagName(tag) for x in y.childNodes]:
       s.append('%s %s=%s'%(PCSF[tag],x.getAttribute('name'),x.getAttribute('value')))
+      self.run_pcs(s[-1],x.getAttribute(ATTR_C))
+    if s:
+      return '%s\n%s\n'%(CMNT[tag],'\n'.join(s))
+
+  def x2p_default(self,tag):
+    #
+    # RHEL 8.2 and earlier  # self.pcs_default == 1
+    #  pcs resource defaults <name>=<value>
+    #  pcs resource op defaults <name>=<value>
+    #
+    # RHEL 8.3 and later    # self.pcs_default == 2
+    #  pcs resource defaults update <name>=<value>
+    #  pcs resource op defaults update <name>=<value>
+    #
+    s = []
+    for x in [x for y in self.root.getElementsByTagName(tag) for x in y.childNodes]:
+      if self.pcs_default == 1:
+        s.append('%s %s=%s'%(PCSF[tag],x.getAttribute('name'),x.getAttribute('value')))
+      elif self.pcs_default == 2:
+        s.append('%s update %s=%s'%(PCSF[tag],x.getAttribute('name'),x.getAttribute('value')))
       self.run_pcs(s[-1],x.getAttribute(ATTR_C))
     if s:
       return '%s\n%s\n'%(CMNT[tag],'\n'.join(s))
@@ -1888,8 +1957,15 @@ class Gen:
   def x2p_rsc_advanced(self,node):
     #
     # pcs resource group add <group id> <resource id>...
-    # pcs resource clone <resource id | group id> <clone id>
-    # pcs resource promotable <resource id | group id> <clone id>
+    #
+    # RHEL 8.3 and earlier  # self.pcs_rsc_adv == 1
+    #  pcs resource clone <resource id | group id>
+    #  pcs resource promotable <resource id | group id>
+    #
+    # RHEL 8.4 and later    # self.pcs_rsc_adv == 2
+    #  pcs resource clone <resource id | group id> <clone id>
+    #  pcs resource promotable <resource id | group id> <clone id>
+    #
     #  +
     # pcs resource meta <group id | clone id> <name>=<value>
     #
@@ -1899,7 +1975,10 @@ class Gen:
     for x in [x for x in node.childNodes if x.nodeName == 'rsc']:
       z.append(x.getAttribute('id'))
     if node.nodeName == Mode.CLNE.value or node.nodeName == Mode.PROM.value:
-      z.append(node.getAttribute('id'))
+      if self.pcs_rsc_adv == 1:
+        pass
+      elif self.pcs_rsc_adv == 2:
+        z.append(node.getAttribute('id'))
     s.append(CMNT[node.nodeName])
     s.append('%s %s'%(PCSF[node.nodeName],' '.join(z)))
     self.run_pcs(s[-1],node.getAttribute(ATTR_C))
