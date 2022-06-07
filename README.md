@@ -2,7 +2,7 @@
 
 # pm_extra_tools: Pacemaker-2.0系追加パッケージ
 
-Copyright (c) 2020-2021 Linux-HA Japan Project
+Copyright (c) 2020-2022 Linux-HA Japan Project
 
 ## はじめに
 Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
@@ -14,8 +14,8 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.3-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.4 HA Add-On / CentOS 8.4.2105 です。
+* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.4-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.6 HA Add-On / Rocky Linux 8.6 です。
 
 ## インストール・アンインストール
 * インストール手順
@@ -67,29 +67,24 @@ Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツール�
 * (1) パラメータシートにクラスタ構成の設定を行い、CSVにエクスポートします。
   * Windows® operating system上でエクスポートしたCSVは、pm_pcsgenコマンドを実行するノードに転送します。
 * (2) pm_pcsgenコマンドを実行し、CSVから設定一括反映用ファイルを作成します。
-* (3) クラスタに設定を加えている(リソースなどが設定されている)場合は、クラスタを再構築します。
-* (4) クラスタを起動します。
-* (5) クラスタに設定を反映します(設定一括反映用ファイルをプッシュします)。
+* (3) クラスタを起動します。
+* (4) クラスタに設定を反映します(設定一括反映用ファイルをプッシュします)。
 
   ```
   (2)
   # pm_pcsgen pgsql-ipmi.csv
-  pgsql-ipmi.xml (CIB), pgsql-ipmi.sh (PCS) を出力しました
+  pgsql-ipmi.xml (CIB), pgsql-ipmi.sh (PCS) を出力しました。
 
   # ls -l
-  -rw-r--r--.  1 root root     9449  3月 30 16:00 pgsql-ipmi.csv
-  -rwxr--r--.  1 root root     3586  3月 30 16:01 pgsql-ipmi.sh
-  -rw-r--r--.  1 root root    10527  3月 30 16:01 pgsql-ipmi.xml
+  -rw-r--r--  1 root root  9411  6月  7 14:18 pgsql-ipmi.csv
+  -rwxr--r--  1 root root  3808  6月  7 14:18 pgsql-ipmi.sh
+  -rw-r--r--  1 root root 10834  6月  7 14:18 pgsql-ipmi.xml
 
   (3)
-  # pcs cluster destroy --all
-  # pcs cluster setup ...
-
-  (4)
   # pcs cluster start --all
 
-  (5)
-  # pcs cluster cib-push pgsql-ipmi.xml
+  (4)
+  # pcs cluster cib-push pgsql-ipmi.xml --config
   ```
   </div></details>
 
