@@ -2,7 +2,7 @@
 
 # pm_extra_tools: Pacemaker-2.0系追加パッケージ
 
-Copyright (c) 2020-2021 Linux-HA Japan Project
+Copyright (c) 2020-2022 Linux-HA Japan Project
 
 ## はじめに
 Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
@@ -14,8 +14,8 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.3-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.4 HA Add-On / CentOS 8.4.2105 です。
+* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.4-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.6 HA Add-On / Rocky Linux 8.6 です。
 
 ## インストール・アンインストール
 * インストール手順
@@ -46,9 +46,7 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 #### 1. pm_pcsgen
 Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツールです。
 
-* pm_crmgen(Pacemaker-1.1系crm設定変換ツール)のpcs対応版です。
-
-  <details><summary>設定変換ツールの概要</summary><div>
+- <details><summary>設定変換ツールの概要</summary><div>
 
   ![pm_pcsgen](./images/pm_pcsgen.png "pm_pcsgen")
   </div></details>
@@ -64,32 +62,32 @@ Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツール�
   * 変更は不要です。
 
 ##### 使い方
-* (1) パラメータシートにクラスタ構成の設定を行い、CSVにエクスポートします。
+* (1) クラスタを作成します。
+* (2) パラメータシートにクラスタ構成の設定を行い、CSVにエクスポートします。
   * Windows® operating system上でエクスポートしたCSVは、pm_pcsgenコマンドを実行するノードに転送します。
-* (2) pm_pcsgenコマンドを実行し、CSVから設定一括反映用ファイルを作成します。
-* (3) クラスタに設定を加えている(リソースなどが設定されている)場合は、クラスタを再構築します。
+* (3) pm_pcsgenコマンドを実行し、CSVから設定一括反映用ファイルを作成します。
 * (4) クラスタを起動します。
 * (5) クラスタに設定を反映します(設定一括反映用ファイルをプッシュします)。
 
   ```
-  (2)
-  # pm_pcsgen pgsql-ipmi.csv
-  pgsql-ipmi.xml (CIB), pgsql-ipmi.sh (PCS) を出力しました
-
-  # ls -l
-  -rw-r--r--.  1 root root     9449  3月 30 16:00 pgsql-ipmi.csv
-  -rwxr--r--.  1 root root     3586  3月 30 16:01 pgsql-ipmi.sh
-  -rw-r--r--.  1 root root    10527  3月 30 16:01 pgsql-ipmi.xml
+  (1)
+  # pcs host auth ...
+  # pcs cluster setup ...
 
   (3)
-  # pcs cluster destroy --all
-  # pcs cluster setup ...
+  # pm_pcsgen pgsql-ipmi.csv
+  pgsql-ipmi.xml (CIB), pgsql-ipmi.sh (PCS) を出力しました。
+
+  # ls -l
+  -rw-r--r--  1 root root  9411  6月  7 14:18 pgsql-ipmi.csv
+  -rwxr--r--  1 root root  3808  6月  7 14:18 pgsql-ipmi.sh
+  -rw-r--r--  1 root root 10834  6月  7 14:18 pgsql-ipmi.xml
 
   (4)
   # pcs cluster start --all
 
   (5)
-  # pcs cluster cib-push pgsql-ipmi.xml
+  # pcs cluster cib-push pgsql-ipmi.xml --config
   ```
   </div></details>
 
@@ -125,7 +123,7 @@ Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツール�
 * 設定値(パラメータシートの青枠内)には、半角英数字以外の文字を使用しないこと。<br>概要欄・備考欄には、Shift-JISの拡張文字(①、②・・・、I、II・・・など)を使用しないこと。
 
 #### 2. pgsql
-PostgreSQL 12 及び PG-REX(レプリケーション) に対応した、PostgreSQL管理用のリソースエージェントです。<br>開発コミュニティ([https://github.com/ClusterLabs/resource-agents](https://github.com/ClusterLabs/resource-agents))の最新の修正に追随しています。
+PostgreSQL 及び PG-REX(レプリケーション) に対応した、PostgreSQL管理用のリソースエージェントです。<br>開発コミュニティ([https://github.com/ClusterLabs/resource-agents](https://github.com/ClusterLabs/resource-agents))の最新の修正に追随しています。
 
 * 使用するには provider部分に**linuxhajp**、type部分に**pgsql** を設定します。
 * 設定パラメータについては、RAのメタデータを参照してください。(```# pcs resource describe ocf:linuxhajp:pgsql```コマンドで確認できます。)
