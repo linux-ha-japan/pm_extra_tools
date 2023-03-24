@@ -458,7 +458,7 @@ wal receiver is not running in the master and the attribute shows status as
 <action name="stop" timeout="120s" />
 <action name="status" timeout="60s" />
 <action name="monitor" depth="0" timeout="30s" interval="30s"/>
-<action name="monitor" depth="0" timeout="30s" interval="29s" role="Master" />
+<action name="monitor" depth="0" timeout="30s" interval="29s" role="Promoted" />
 <action name="promote" timeout="120s" />
 <action name="demote" timeout="120s" />
 <action name="notify"   timeout="90s" />
@@ -808,7 +808,7 @@ pgsql_real_stop() {
     local stop_escalate
 
     if ocf_is_true ${OCF_RESKEY_check_wal_receiver}; then
-        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -D -q
+        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -D
     fi
 
     if ! pgsql_status
@@ -937,16 +937,16 @@ pgsql_wal_receiver_status() {
     receiver_parent_pids=`ps -ef | tr -s " " | grep "[w]al\s*receiver" | cut -d " " -f 3`
 
     if echo "$receiver_parent_pids" | grep -q -w "$PID" ; then
-        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "normal" -q
+        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "normal"
         return 0
     fi
 
     if [ $pgsql_real_monitor_status -eq "$OCF_RUNNING_MASTER" ]; then
-        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "normal (master)" -q
+        attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "normal (master)"
         return 0
     fi
 
-    attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "ERROR" -q
+    attrd_updater -n "$PGSQL_WAL_RECEIVER_STATUS_ATTR" -v "ERROR"
     ocf_log warn "wal receiver process is not running"
     return 1
 }
@@ -1835,7 +1835,7 @@ check_config() {
 
     if [ ! -f "$1" ]; then
         if ocf_is_probe; then
-           ocf_log info "Configuration file is $1 not readable during probe."
+           ocf_log info "Unable to read $1 during probe."
            rc=1
         else
            ocf_exit_reason "Configuration file $1 doesn't exist"
@@ -1846,8 +1846,7 @@ check_config() {
     return $rc
 }
 
-# Validate most critical parameters
-pgsql_validate_all() {
+validate_ocf_check_level_10() {
     local version
     local check_config_rc
     local rep_mode_string
@@ -1883,12 +1882,6 @@ pgsql_validate_all() {
         fi
     fi
 
-    getent passwd $OCF_RESKEY_pgdba >/dev/null 2>&1
-    if [ ! $? -eq 0 ]; then
-        ocf_exit_reason "User $OCF_RESKEY_pgdba doesn't exist";
-        return $OCF_ERR_INSTALLED;
-    fi
-
     if ocf_is_probe; then
         ocf_log info "Don't check $OCF_RESKEY_pgdata during probe"
     else
@@ -1896,18 +1889,6 @@ pgsql_validate_all() {
             ocf_exit_reason "Directory $OCF_RESKEY_pgdata is not writable by $OCF_RESKEY_pgdba"
             return $OCF_ERR_PERM;
         fi
-    fi
-
-    if [ -n "$OCF_RESKEY_monitor_user" -a ! -n "$OCF_RESKEY_monitor_password" ]
-    then
-        ocf_exit_reason "monitor password can't be empty"
-        return $OCF_ERR_CONFIGURED
-    fi
-
-    if [ ! -n "$OCF_RESKEY_monitor_user" -a -n "$OCF_RESKEY_monitor_password" ]
-    then
-        ocf_exit_reason "monitor_user has to be set if monitor_password is set"
-        return $OCF_ERR_CONFIGURED
     fi
 
     if is_replication || [ "$OCF_RESKEY_rep_mode" = "slave" ]; then
@@ -2023,6 +2004,35 @@ pgsql_validate_all() {
             ocf_exit_reason "Invalid replication_slot_name($OCF_RESKEY_replication_slot_name). only use lower case letters, numbers, and the underscore character."
             return $OCF_ERR_CONFIGURED
         fi
+    fi
+
+    return $OCF_SUCCESS
+}
+
+# Validate most critical parameters
+pgsql_validate_all() {
+    local rc
+
+    getent passwd $OCF_RESKEY_pgdba >/dev/null 2>&1
+    if [ ! $? -eq 0 ]; then
+        ocf_exit_reason "User $OCF_RESKEY_pgdba doesn't exist";
+        return $OCF_ERR_INSTALLED;
+    fi
+
+    if [ -n "$OCF_RESKEY_monitor_user" ] && [ -z "$OCF_RESKEY_monitor_password" ]; then
+        ocf_exit_reason "monitor password can't be empty"
+        return $OCF_ERR_CONFIGURED
+    fi
+
+    if [ -z "$OCF_RESKEY_monitor_user" ] && [ -n "$OCF_RESKEY_monitor_password" ]; then
+        ocf_exit_reason "monitor_user has to be set if monitor_password is set"
+        return $OCF_ERR_CONFIGURED
+    fi
+
+    if [ "$OCF_CHECK_LEVEL" -eq 10 ]; then
+        validate_ocf_check_level_10
+	rc=$?
+	[ $rc -ne "$OCF_SUCCESS" ] && exit $rc
     fi
 
     return $OCF_SUCCESS
@@ -2164,6 +2174,7 @@ case "$1" in
                 exit $OCF_SUCCESS;;
 esac
 
+[ "$__OCF_ACTION" != "validate-all" ] && OCF_CHECK_LEVEL=10
 pgsql_validate_all
 rc=$?
 
