@@ -232,7 +232,7 @@ class Rhelver:
             pos = 5
 
         vs = v.split(' ')[pos].split('.')[0]
-        self.rhel_ver = vs
+        self.rhel_ver = int(vs)
         return True
     except Exception as e:
         log.innererr('/etc/redhat-releaseファイルの読み込みに失敗しました',e)
