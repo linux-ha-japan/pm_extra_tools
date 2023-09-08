@@ -30,6 +30,7 @@ from enum import Enum
 from enum import IntEnum
 
 CONF = '/usr/share/pm_extra_tools/pm_pcsgen.conf'
+DST = '/etc/redhat-release'
 U8 = 'utf-8'
 
 # モード識別子(処理中の表を識別)
@@ -213,6 +214,30 @@ TBLN = {
   Mode.CNFG.value: '追加設定表'
 }
 
+class Rhelver:
+  rhel_ver = 8
+
+  def __init__(self):
+    if not self.get_rhel_ver():
+      exit(RC.ERROR)
+  '''
+  '''
+  def get_rhel_ver(self):
+    try:
+      with open(DST,'r') as f:
+        v = f.read()
+        if v.split(' ')[0].split('.')[0] == "Rocky":
+            pos = 3
+        else:
+            pos = 5
+
+        vs = v.split(' ')[pos].split('.')[0]
+        self.rhel_ver = int(vs)
+        return True
+    except Exception as e:
+        log.innererr('/etc/redhat-releaseファイルの読み込みに失敗しました',e)
+        return False
+
 class Gen:
   mode = (None,None)
   pcr = []          # 親子関係 (parent and child relationship)
@@ -252,18 +277,25 @@ class Gen:
   def parse_option(self):
     import argparse
     import pathlib
-    sep = r':'
-    i = f'<XLS_FILE{sep}SheetName | CSV_FILE>' if import_xlrd else 'CSV_FILE'
-    x = '<SheetName>.xml | <CSV_FILE>.xml' if import_xlrd else '<CSV_FILE>.xml'
-    s = '<SheetName>.sh | <CSV_FILE>.sh' if import_xlrd else '<CSV_FILE>.sh'
-    d = 'Support for XLS_FILE is provided as a Technology Preview.' if import_xlrd \
+    if rhelver.rhel_ver == 8:
+      sep = r':'
+      i = f'<XLS_FILE{sep}SheetName | CSV_FILE>' if import_xlrd else 'CSV_FILE'
+      x = '<SheetName>.xml | <CSV_FILE>.xml' if import_xlrd else '<CSV_FILE>.xml'
+      s = '<SheetName>.sh | <CSV_FILE>.sh' if import_xlrd else '<CSV_FILE>.sh'
+      d = 'Support for XLS_FILE is provided as a Technology Preview.' if import_xlrd \
           else 'CSV_FILE supports UTF-8 and Shift_JIS.'
+    else:
+      i = 'CSV_FILE'
+      x = '<CSV_FILE>.xml'
+      s = '<CSV_FILE>.sh'
+      d = 'CSV_FILE supports UTF-8 and Shift_JIS.'
+
     p = argparse.ArgumentParser(
       usage=f'%(prog)s [options] {i}',
       description=f"To set 'cluster node (NODE table)', cluster must be live.\n{d}",
       prog='pm_pcsgen',
       formatter_class=argparse.RawTextHelpFormatter)
-    p.add_argument('-$','--version',action='version',version='1.3',
+    p.add_argument('-$','--version',action='version',version='1.5',
       help='Print %(prog)s version information.')
     p.add_argument('-V','--verbose',action='count',dest='loglv',default=Log.WARN,
       help='Increase debug output.')
@@ -291,14 +323,25 @@ class Gen:
       return False
     log.lv = opts.loglv
     self.live = opts.live
-    self.input = args[0].split(sep)[0]
-    self.sheet = args[0].split(sep)[1] if import_xlrd and re.search(sep,args[0]) else None
-    r,e = (self.sheet,None) if self.sheet else os.path.splitext(os.path.basename(self.input))
+    if rhelver.rhel_ver == 8:
+      self.input = args[0].split(sep)[0]
+      self.sheet = args[0].split(sep)[1] if import_xlrd and re.search(sep,args[0]) else None
+      r,e = (self.sheet,None) if self.sheet else os.path.splitext(os.path.basename(self.input))
+    else:
+      self.input = args[0]
+      r,e = os.path.splitext(os.path.basename(self.input))
+
     self.outxml = opts.cib_file if opts.cib_file else f'{r}.xml'
     self.outsh = opts.pcs_file if opts.pcs_file else f'{r}.sh'
-    log.set_msginfo(self.sheet,self.outxml,self.outsh)
-    log.debug(f'input[{os.path.abspath(self.input)}] sheet[{self.sheet}] '
+    if rhelver.rhel_ver == 8:
+      log.set_msginfo_rhel8(self.sheet,self.outxml,self.outsh)
+      log.debug(f'input[{os.path.abspath(self.input)}] sheet[{self.sheet}] '
               f'outxml[{os.path.abspath(self.outxml)}] outsh[{os.path.abspath(self.outsh)}]')
+    else:
+      log.set_msginfo_rhel9(self.outxml,self.outsh)
+      log.debug(f'input[{os.path.abspath(self.input)}] '
+              f'outxml[{os.path.abspath(self.outxml)}] outsh[{os.path.abspath(self.outsh)}]')
+
     if not os.path.isfile(self.input):
       log.error(f'入力ファイル [{self.input}] が見つかりません')
       return False
@@ -574,13 +617,32 @@ class Gen:
   def read_csv(self):
     import tempfile
     with tempfile.TemporaryDirectory() as d:
-      enc = U8
-      if self.sheet:
-        #
-        # Support for XLS_FILE is provided as a Technology Preview.
-        #
-        if self.xls2csv(d,enc) == RC.ERROR:
-          return RC.ERROR
+      if rhelver.rhel_ver == 8:
+        enc = U8
+        if self.sheet:
+          #
+          # Support for XLS_FILE is provided as a Technology Preview.
+          #
+          if self.xls2csv(d,enc) == RC.ERROR:
+            return RC.ERROR
+        else:
+          try:
+            with open(self.input,'rb') as f:
+              from chardet.universaldetector import UniversalDetector
+              d = UniversalDetector()
+              for l in f:
+                d.feed(l)
+                if d.done:
+                  break
+              d.close()
+              enc = d.result['encoding']
+              log.debug(f'CSVファイルの文字コード [{enc}]')
+          except Exception as e:
+            log.innererr('CSVファイルの読み込みに失敗しました',e)
+            return RC.ERROR
+          if not enc:
+            log.error('CSVファイルの文字コード判定に失敗しました')
+            return RC.ERROR
       else:
         try:
           with open(self.input,'rb') as f:
@@ -599,6 +661,7 @@ class Gen:
         if not enc:
           log.error('CSVファイルの文字コード判定に失敗しました')
           return RC.ERROR
+
       log.debug('[ CSV -> XML ]処理を開始します')
       with open(self.input,mode='r',newline='',encoding=enc) as f:
         import csv
@@ -1731,10 +1794,13 @@ class Gen:
       log.lno = lno
       log.info_l(f'[コマンド_実行] {cmd}')
       m = '[コマンド_結果]'
-      p = subprocess.run(shlex.split(cmd),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-      if p.returncode != 0:
-        error(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8))
-        return False
+      if rhelver.rhel_ver == 8:
+        p = subprocess.run(shlex.split(cmd),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if p.returncode != 0:
+          error(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8))
+          return False
+      else:
+        p = subprocess.run(shlex.split(cmd),stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       f,n = [],[]
       for s in p.stdout.decode(U8).splitlines():
         for (k,x) in self.filter.items():
@@ -1754,6 +1820,10 @@ class Gen:
         else:
           debug(x,self.filter[k].get('filterreason',None))
       x = '\n'.join(n)
+      if rhelver.rhel_ver == 9:
+          if p.returncode != 0:
+            error(x)
+            return False
       if re.match(r'warning: ',x,flags=re.I) is not None:
         warn(x)
       elif x:
@@ -2285,8 +2355,11 @@ class Log:
   def indent(self,s):
     return re.sub(r'^|(\n)',r'\1' + f'{self.indents[1]}',s.rstrip('\n')) + '\n'
 
-  def set_msginfo(self,sheet,outxml,outsh):
+  def set_msginfo_rhel8(self,sheet,outxml,outsh):
     self.msginfo = ('XLS' if sheet else 'CSV',outxml,outsh)
+
+  def set_msginfo_rhel9(self,outxml,outsh):
+    self.msginfo = ('CSV',outxml,outsh)
 
   def exit(self,rc):
     pre = ''
@@ -2406,13 +2479,16 @@ except Exception:
 
 if __name__ == '__main__':
   log = Log()
-  try:
-    import importlib
-    import_xlrd = False
-    if importlib.find_loader('xlrd'):
-      import xlrd
-      import_xlrd = True
-  except Exception:
-    pass
+  rhelver = Rhelver()
+  if rhelver.rhel_ver == 8:
+    try:
+      import importlib
+      import_xlrd = False
+      if importlib.find_loader('xlrd'):
+        import xlrd
+        import_xlrd = True
+    except Exception:
+      pass
+
   gen = Gen()
   exit(gen.main())
