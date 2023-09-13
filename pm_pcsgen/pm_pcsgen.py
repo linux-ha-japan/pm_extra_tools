@@ -1826,6 +1826,8 @@ class Gen:
             return False
       if re.match(r'warning: ',x,flags=re.I) is not None:
         warn(x)
+      elif re.match(r'deprecation warning: ',x,flags=re.I) is not None:
+        warn(x)
       elif x:
         info(x)
       return True
