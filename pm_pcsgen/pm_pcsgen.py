@@ -295,7 +295,7 @@ class Gen:
       description=f"To set 'cluster node (NODE table)', cluster must be live.\n{d}",
       prog='pm_pcsgen',
       formatter_class=argparse.RawTextHelpFormatter)
-    p.add_argument('-$','--version',action='version',version='1.5',
+    p.add_argument('-$','--version',action='version',version='1.6',
       help='Print %(prog)s version information.')
     p.add_argument('-V','--verbose',action='count',dest='loglv',default=Log.WARN,
       help='Increase debug output.')
