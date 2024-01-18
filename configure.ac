@@ -13,7 +13,7 @@ AC_PREREQ([2.69])
 #                     ]))
 #
 #AC_INIT(pm_extra_tools, [CURRENT_VERSION])
-AC_INIT(pm_extra_tools, 1.5)
+AC_INIT(pm_extra_tools, 1.6)
 AM_INIT_AUTOMAKE
 
 # Checks for programs.
