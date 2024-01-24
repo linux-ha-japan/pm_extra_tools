@@ -1886,8 +1886,8 @@ class Gen:
       return
     s = [
       cib,
-      self.x2p_node(),
       self.x2p_option(Mode.PROP.value),
+      self.x2p_node(),
       self.x2p_default(Mode.RDEF.value),
       self.x2p_default(Mode.ODEF.value),
       self.x2p_resources(),
