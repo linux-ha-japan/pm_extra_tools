@@ -1945,6 +1945,8 @@ class Gen:
         s.append('%s %s=%s'%(PCSF[tag],x.getAttribute('name'),x.getAttribute('value')))
       elif self.pcs_default == 2:
         s.append('%s update %s=%s'%(PCSF[tag],x.getAttribute('name'),x.getAttribute('value')))
+      else:
+        continue
       self.run_pcs(s[-1],x.getAttribute(ATTR_C))
     if s:
       return '%s\n%s\n'%(CMNT[tag],'\n'.join(s))
