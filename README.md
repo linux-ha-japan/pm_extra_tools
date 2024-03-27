@@ -1,20 +1,20 @@
 (Japanese)
 
-# pm_extra_tools: Pacemaker-2.0系追加パッケージ
+# pm_extra_tools: Pacemaker-2系追加パッケージ
 
 Copyright (c) 2020-2024 Linux-HA Japan Project
 
 ## はじめに
-Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
+Pacemaker-2系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
 #### パッケージ内容
 * 本パッケージには、以下のツールとリソースエージェントが含まれています。
 
-1. [pm_pcsgen](#1-pm_pcsgen): Pacemaker-2.0系pcs設定変換ツール
+1. [pm_pcsgen](#1-pm_pcsgen): Pacemaker-2系pcs設定変換ツール
 2. [pgsql](#2-pgsql): PostgreSQL管理用のリソースエージェント
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2.0系追加パッケージの最新バージョンは、pm_extra_tools-1.6-1 です。
+* 現時点のPacemaker-2系追加パッケージの最新バージョンは、pm_extra_tools-1.6-1 です。
 * 動作を確認しているOS・バージョンは、RHEL 8.9 HA Add-On / RHEL 9.3 HA Add-On です。
 
 ## インストール・アンインストール
@@ -44,7 +44,7 @@ Pacemaker-2.0系追加パッケージは、RHEL 8 High Availability Add-On (以�
 
 ## 使い方詳細
 #### 1. pm_pcsgen
-Pacemaker-2.0系クラスタ構成の設定ファイルを作成するツールです。
+Pacemaker-2系クラスタ構成の設定ファイルを作成するツールです。
 
 - <details><summary>設定変換ツールの概要</summary><div>
 
