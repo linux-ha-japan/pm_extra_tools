@@ -2118,17 +2118,37 @@ class Gen:
       exp = []
       for y in x.childNodes:
         z = []
+        #
+        # RHEL 10.0 同梱の pcs 0.12 以降、
+        # 'pcs constraint location rule ...'では<expression>をクォートで囲まないとWarning
+        # -> シングルクォートで囲む
+        # -> その場合、'#'のエスケープは行わない
+        #
+        # $ pcs --version
+        # 0.12.0a1
+        # $ pcs constraint location ipaddr-standby rule score=200 pgsql-status eq HS:sync
+        # Deprecation Warning: Specifying a rule as multiple arguments is deprecated and might be removed in a future release, specify the rule as a single string instead
         if y.getAttribute('op').lower() in LOC_RULE_UNARY:
           z.append(y.getAttribute('op'))
-          z.append(y.getAttribute('attribute').replace('#','\#'))
+          if rhelver.rhel_ver >= 10:
+            z.append(y.getAttribute('attribute'))
+          else:
+            z.append(y.getAttribute('attribute').replace('#', r'\#'))
         else:
-          z.append(y.getAttribute('attribute').replace('#','\#'))
+          if rhelver.rhel_ver >= 10:
+            z.append(y.getAttribute('attribute'))
+          else:
+            z.append(y.getAttribute('attribute').replace('#', r'\#'))
           z.append(y.getAttribute('op'))
           z.append(y.getAttribute('value'))
         exp.append(' '.join(z))
       z = f" {x.getAttribute('bool_op')} ".join(exp) if x.getAttribute('bool_op') else exp[0]
-      s.append('%s %s rule%s score=%s %s'%(
-        PCSF[Mode.LOCR.value], l.getAttribute('rsc'), ''.join(role), x.getAttribute('score'), z ))
+      if rhelver.rhel_ver >= 10:
+        s.append('%s %s rule%s score=%s \'%s\''%(
+          PCSF[Mode.LOCR.value], l.getAttribute('rsc'), ''.join(role), x.getAttribute('score'), z ))
+      else:
+        s.append('%s %s rule%s score=%s %s'%(
+          PCSF[Mode.LOCR.value], l.getAttribute('rsc'), ''.join(role), x.getAttribute('score'), z ))
       self.run_pcs(s[-1],x.getAttribute(ATTR_C))
     if s:
       return '%s\n%s\n'%(CMNT[Mode.LOCR.value],'\n'.join(s))
