@@ -1820,7 +1820,7 @@ class Gen:
         else:
           debug(x,self.filter[k].get('filterreason',None))
       x = '\n'.join(n)
-      if rhelver.rhel_ver == 9:
+      if rhelver.rhel_ver >= 9:
           if p.returncode != 0:
             error(x)
             return False
