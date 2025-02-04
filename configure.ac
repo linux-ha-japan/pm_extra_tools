@@ -13,8 +13,12 @@ AC_PREREQ([2.69])
 #                     ]))
 #
 #AC_INIT(pm_extra_tools, [CURRENT_VERSION])
-AC_INIT(pm_extra_tools, 1.6)
+m4_define([CURRENT_VERSION], [1.7])
+AC_INIT(pm_extra_tools, [CURRENT_VERSION])
 AM_INIT_AUTOMAKE
+
+PM_PCSGEN_VER=CURRENT_VERSION
+AC_SUBST(PM_PCSGEN_VER)
 
 # Checks for programs.
 AC_PROG_LN_S
@@ -30,5 +34,6 @@ AC_PROG_LN_S
 AC_CONFIG_FILES([Makefile
                  pm_extra_tools.spec
                  pm_pcsgen/Makefile
+                 pm_pcsgen/pm_pcsgen.py
                  resources/Makefile])
 AC_OUTPUT
