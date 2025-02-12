@@ -31,6 +31,21 @@ AC_PROG_LN_S
 
 # Checks for library functions.
 
+AC_SUBST([current_rhel],
+         m4_esyscmd([
+             cat /etc/redhat-release | sed -e 's/.*\s\([0-9]\+\)\..*/\1/'
+         ]))
+
+#rm -rf resourece/hulft
+rm -rf resourece/pgsql
+if test $current_rhel -eq 10; then
+#      cp resources/hulft.rhel10 resources/hulft
+      cp resources/pgsql.rhel10 resources/pgsql
+else
+#      cp resources/hulft.rhel9_or_earlier resources/hulft
+      cp resources/pgsql.rhel9_or_earlier resources/pgsql
+fi
+
 AC_CONFIG_FILES([Makefile
                  pm_extra_tools.spec
                  pm_pcsgen/Makefile
