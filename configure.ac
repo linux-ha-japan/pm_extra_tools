@@ -31,6 +31,22 @@ AC_PROG_LN_S
 
 # Checks for library functions.
 
+AC_SUBST([current_rhel],
+         m4_esyscmd([
+             cat /etc/redhat-release | sed -e 's/.*\s\([0-9]\+\)\..*/\1/'
+         ]))
+
+rm -rf resources/pgsql
+if test $current_rhel -eq 10; then
+    cp resources/pgsql.rhel10 resources/pgsql
+elif test $current_rhel -eq 9; then
+    cp resources/pgsql.rhel9 resources/pgsql
+elif test $current_rhel -eq 8; then
+    cp resources/pgsql.rhel8 resources/pgsql
+else
+    AC_MSG_ERROR([Unsupported RHEL version: $current_rhel])
+fi
+
 AC_CONFIG_FILES([Makefile
                  pm_extra_tools.spec
                  pm_pcsgen/Makefile
