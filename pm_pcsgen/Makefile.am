@@ -5,6 +5,7 @@ pcsgen_SCRIPTS		= pm_pcsgen.py
 pcsgen_DATA		= pm_pcsgen.conf pm_pcsgen_sample.xlsx
 pcsgenlinkdir		= /usr/bin
 
+CLEANFILES		= $(pcsgen_SCRIPTS)
 EXTRA_DIST		= $(pcsgen_SCRIPTS) $(pcsgen_DATA)
 
 install-exec-hook:
