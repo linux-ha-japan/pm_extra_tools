@@ -560,6 +560,7 @@ class Gen:
       s = self.xml2pcs()
       if not s:
         return RC.ERROR
+      s = s.replace(f'{self.outxml}', r'"${xmlfile}"')
       if not self.write_pcs(s):
         return RC.ERROR
       os.chmod(self.outsh,0o744)
@@ -1857,6 +1858,7 @@ class Gen:
           log.error(f'{m}。クラスタを起動した状態で実行してください')
           log.error_r(fmtmsg(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8),c))
           return
+        c = c.replace(f'{outxml}', r'"${xmlfile}"')
         return f'{c}\n'
       else:
         c = 'cibadmin --empty'
@@ -1868,7 +1870,7 @@ class Gen:
           return
         with open(outxml,"w",encoding=U8) as f:
           f.write(p.stdout.decode(U8))
-        return f'{c} > {outxml}\n'
+        return f'{c} > "${{xmlfile}}"\n'
     except Exception as e:
       log.innererr(f'{m}',e)
 
@@ -1881,10 +1883,14 @@ class Gen:
           None : NG時
   '''
   def xml2pcs(self):
+    shebang = f'#!/bin/sh\n'
+    xmlfilename = r'xmlfile=$(basename "$0" .sh).xml'
     cib = self.get_cib(self.outxml,self.root)
     if not cib:
       return
     s = [
+      shebang,
+      xmlfilename,
       cib,
       self.x2p_option(Mode.PROP.value),
       self.x2p_node(),
