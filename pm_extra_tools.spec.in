@@ -8,7 +8,9 @@
 %define release 1%{?dist}
 #
 %define pcsgendir /usr/share/%{name}
-%define ocfextdir /usr/lib/ocf/resource.d/linuxhajp
+%define pcsgenname pm_pcsgen
+%define ocfrscdir /usr/lib/ocf/resource.d
+%define ocfextdir %{ocfrscdir}/linuxhajp
 #
 Name:          %{name}
 Summary:       Extra Tools & Scripts for Pacemaker
@@ -41,7 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %install
 make DESTDIR=$RPM_BUILD_ROOT install
-ln -sf %{pcsgendir}/pm_pcsgen.py /usr/bin/pm_pcsgen
+ln -sf %{pcsgendir}/%{pcsgenname}.py $RPM_BUILD_ROOT/%{_bindir}/%{pcsgenname}
 
 %clean
 if
@@ -61,10 +63,10 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %defattr(-,root,root)
 
 %dir %{pcsgendir}
-%attr (755,root,root) %{pcsgendir}/pm_pcsgen.py
-%{pcsgendir}/pm_pcsgen.conf
+%attr (755,root,root) %{pcsgendir}/%{pcsgenname}.py
+%{pcsgendir}/%{pcsgenname}.conf
 %{pcsgendir}/pm_pcsgen_sample.xlsx
-/usr/bin/pm_pcsgen
+%{_bindir}/%{pcsgenname}
 
 %dir %{ocfextdir}
 %attr (755,root,root) %{ocfextdir}/pgsql
