@@ -1,3 +1,9 @@
-[submodule "vendor/resource-agents"]
-	path = vendor/resource-agents
+[submodule "vendor/resource-agents_rhel8"]
+	path = vendor/resource-agents_rhel8
+	url = https://github.com/ClusterLabs/resource-agents
+[submodule "vendor/resource-agents_rhel9"]
+	path = vendor/resource-agents_rhel9
+	url = https://github.com/ClusterLabs/resource-agents
+[submodule "vendor/resource-agents_rhel10"]
+	path = vendor/resource-agents_rhel10
 	url = https://github.com/ClusterLabs/resource-agents
