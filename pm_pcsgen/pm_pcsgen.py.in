@@ -249,6 +249,7 @@ class Gen:
   req_reci = False  # Alert表のrecipient列にデータが必要な状態の間、Trueを設定
   pcs_default = 0
   pcs_rsc_adv = 0
+  XML_VAR = '"${xmlfile}"'
 
   def __init__(self):
     if not self.parse_option():
@@ -560,7 +561,8 @@ class Gen:
       s = self.xml2pcs()
       if not s:
         return RC.ERROR
-      s = s.replace(f'{self.outxml}', r'"${xmlfile}"')
+      pattern = rf'^pcs -f {re.escape(self.outxml)}'
+      s = re.sub(pattern, rf'pcs -f {self.XML_VAR}', s, flags=(re.MULTILINE))
       if not self.write_pcs(s):
         return RC.ERROR
       os.chmod(self.outsh,0o744)
@@ -1869,7 +1871,7 @@ class Gen:
           log.error(f'{m}。クラスタを起動した状態で実行してください')
           log.error_r(fmtmsg(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8),c))
           return
-        c = c.replace(f'{outxml}', r'"${xmlfile}"')
+        c = c.replace(f'{outxml}', rf'{self.XML_VAR}')
         return f'{c}\n'
       else:
         c = 'cibadmin --empty'
@@ -1881,7 +1883,7 @@ class Gen:
           return
         with open(outxml,"w",encoding=U8) as f:
           f.write(p.stdout.decode(U8))
-        return f'{c} > "${{xmlfile}}"\n'
+        return f'{c} > {self.XML_VAR}\n'
     except Exception as e:
       log.innererr(f'{m}',e)
 
