@@ -617,19 +617,32 @@ class Gen:
   '''
   def read_csv(self):
     import tempfile
+    enc = None
     with tempfile.TemporaryDirectory() as d:
-      if rhelver.rhel_ver == 8:
+      if rhelver.rhel_ver == 8 and self.sheet:
         enc = U8
-        if self.sheet:
+        if self.xls2csv(d,enc) == RC.ERROR:
           #
           # Support for XLS_FILE is provided as a Technology Preview.
           #
-          if self.xls2csv(d,enc) == RC.ERROR:
-            return RC.ERROR
-        else:
+          return RC.ERROR
+      if enc is None:
+        use_chardet = None
+        try:
+          from chardet.universaldetector import UniversalDetector
+          use_chardet = True
+        except ImportError:
+          pass
+        if use_chardet is None:
           try:
-            with open(self.input,'rb') as f:
-              from chardet.universaldetector import UniversalDetector
+            from charset_normalizer import from_bytes
+            use_chardet = False
+          except ImportError:
+            log.innererr('CSVファイルの読み込みに失敗しました',e)
+            return RC.ERROR
+        try:
+          with open(self.input,'rb') as f:
+            if use_chardet:
               d = UniversalDetector()
               for l in f:
                 d.feed(l)
@@ -638,24 +651,22 @@ class Gen:
               d.close()
               enc = d.result['encoding']
               log.debug(f'CSVファイルの文字コード [{enc}]')
-          except Exception as e:
-            log.innererr('CSVファイルの読み込みに失敗しました',e)
-            return RC.ERROR
-          if not enc:
-            log.error('CSVファイルの文字コード判定に失敗しました')
-            return RC.ERROR
-      else:
-        try:
-          with open(self.input,'rb') as f:
-            from chardet.universaldetector import UniversalDetector
-            d = UniversalDetector()
-            for l in f:
-              d.feed(l)
-              if d.done:
-                break
-            d.close()
-            enc = d.result['encoding']
-            log.debug(f'CSVファイルの文字コード [{enc}]')
+            else:
+              sorted_encodings, not_jp = [], []
+              raw_data = f.read()
+              results = from_bytes(raw_data)
+              if results:
+                # charset-normalizerを使用した文字コード判定の場合、
+                # shift_jisがgb18030（中国語）に誤判定される場合があるため、
+                # 判定した文字コード候補のなかから日本語のものを優先的に選択する。
+                for candidate in results:
+                  if candidate.language.lower() == "japanese":
+                    sorted_encodings.append(candidate.encoding)
+                  else:
+                    not_jp.append(candidate.encoding)
+                sorted_encodings.extend(not_jp)
+                enc = sorted_encodings[0]
+              log.debug(f'CSVファイルの文字コード [{", ".join(sorted_encodings)}]')
         except Exception as e:
           log.innererr('CSVファイルの読み込みに失敗しました',e)
           return RC.ERROR
