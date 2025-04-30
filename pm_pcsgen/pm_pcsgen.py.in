@@ -249,6 +249,7 @@ class Gen:
   req_reci = False  # Alert表のrecipient列にデータが必要な状態の間、Trueを設定
   pcs_default = 0
   pcs_rsc_adv = 0
+  XML_VAR = '"${xmlfile}"'
 
   def __init__(self):
     if not self.parse_option():
@@ -560,7 +561,8 @@ class Gen:
       s = self.xml2pcs()
       if not s:
         return RC.ERROR
-      s = s.replace(f'{self.outxml}', r'"${xmlfile}"')
+      pattern = rf'^pcs -f {re.escape(self.outxml)}'
+      s = re.sub(pattern, rf'pcs -f {self.XML_VAR}', s, flags=(re.MULTILINE))
       if not self.write_pcs(s):
         return RC.ERROR
       os.chmod(self.outsh,0o744)
@@ -617,19 +619,32 @@ class Gen:
   '''
   def read_csv(self):
     import tempfile
+    enc = None
     with tempfile.TemporaryDirectory() as d:
-      if rhelver.rhel_ver == 8:
+      if rhelver.rhel_ver == 8 and self.sheet:
         enc = U8
-        if self.sheet:
+        if self.xls2csv(d,enc) == RC.ERROR:
           #
           # Support for XLS_FILE is provided as a Technology Preview.
           #
-          if self.xls2csv(d,enc) == RC.ERROR:
-            return RC.ERROR
-        else:
+          return RC.ERROR
+      if enc is None:
+        use_chardet = None
+        try:
+          from chardet.universaldetector import UniversalDetector
+          use_chardet = True
+        except ImportError:
+          pass
+        if use_chardet is None:
           try:
-            with open(self.input,'rb') as f:
-              from chardet.universaldetector import UniversalDetector
+            from charset_normalizer import from_bytes
+            use_chardet = False
+          except ImportError:
+            log.innererr('CSVファイルの読み込みに失敗しました',e)
+            return RC.ERROR
+        try:
+          with open(self.input,'rb') as f:
+            if use_chardet:
               d = UniversalDetector()
               for l in f:
                 d.feed(l)
@@ -638,24 +653,22 @@ class Gen:
               d.close()
               enc = d.result['encoding']
               log.debug(f'CSVファイルの文字コード [{enc}]')
-          except Exception as e:
-            log.innererr('CSVファイルの読み込みに失敗しました',e)
-            return RC.ERROR
-          if not enc:
-            log.error('CSVファイルの文字コード判定に失敗しました')
-            return RC.ERROR
-      else:
-        try:
-          with open(self.input,'rb') as f:
-            from chardet.universaldetector import UniversalDetector
-            d = UniversalDetector()
-            for l in f:
-              d.feed(l)
-              if d.done:
-                break
-            d.close()
-            enc = d.result['encoding']
-            log.debug(f'CSVファイルの文字コード [{enc}]')
+            else:
+              sorted_encodings, not_jp = [], []
+              raw_data = f.read()
+              results = from_bytes(raw_data)
+              if results:
+                # charset-normalizerを使用した文字コード判定の場合、
+                # shift_jisがgb18030（中国語）に誤判定される場合があるため、
+                # 判定した文字コード候補のなかから日本語のものを優先的に選択する。
+                for candidate in results:
+                  if candidate.language.lower() == "japanese":
+                    sorted_encodings.append(candidate.encoding)
+                  else:
+                    not_jp.append(candidate.encoding)
+                sorted_encodings.extend(not_jp)
+                enc = sorted_encodings[0]
+              log.debug(f'CSVファイルの文字コード [{", ".join(sorted_encodings)}]')
         except Exception as e:
           log.innererr('CSVファイルの読み込みに失敗しました',e)
           return RC.ERROR
@@ -1858,7 +1871,7 @@ class Gen:
           log.error(f'{m}。クラスタを起動した状態で実行してください')
           log.error_r(fmtmsg(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8),c))
           return
-        c = c.replace(f'{outxml}', r'"${xmlfile}"')
+        c = c.replace(f'{outxml}', rf'{self.XML_VAR}')
         return f'{c}\n'
       else:
         c = 'cibadmin --empty'
@@ -1870,7 +1883,7 @@ class Gen:
           return
         with open(outxml,"w",encoding=U8) as f:
           f.write(p.stdout.decode(U8))
-        return f'{c} > "${{xmlfile}}"\n'
+        return f'{c} > {self.XML_VAR}\n'
     except Exception as e:
       log.innererr(f'{m}',e)
 
