@@ -6,6 +6,7 @@
 %define name pm_extra_tools
 %define version @VERSION@
 %define release 1%{?dist}
+%define source_date_epoch_from_changelog 0
 #
 %define pcsgendir /usr/share/%{name}
 %define pcsgenname pm_pcsgen
@@ -43,7 +44,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %install
 make DESTDIR=$RPM_BUILD_ROOT install
-ln -sf %{pcsgendir}/%{pcsgenname}.py $RPM_BUILD_ROOT/%{_bindir}/%{pcsgenname}
+rm -f $RPM_BUILD_ROOT/%{_bindir}/%{pcsgenname}
 
 %clean
 if
@@ -54,10 +55,16 @@ fi
 rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 
 %post
+ln -sf %{pcsgendir}/%{pcsgenname}.py %{_bindir}/%{pcsgenname}
 
 %preun
 
 %postun
+case "$1" in
+  0)
+     rm -f %{_bindir}/%{pcsgenname}
+  ;;
+esac
 
 %files
 %defattr(-,root,root)
@@ -66,7 +73,7 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %attr (755,root,root) %{pcsgendir}/%{pcsgenname}.py
 %{pcsgendir}/%{pcsgenname}.conf
 %{pcsgendir}/pm_pcsgen_sample.xlsx
-%{_bindir}/%{pcsgenname}
+%ghost %{_bindir}/%{pcsgenname}
 
 %dir %{ocfextdir}
 %attr (755,root,root) %{ocfextdir}/pgsql
