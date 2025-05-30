@@ -666,7 +666,8 @@ class Gen:
                     "encoding": candidate.encoding,
                     "has_bom": candidate.bom
                   }
-                  if item["encoding"] == "utf_8" and item["has_bom"]:
+                  if (item["encoding"].replace('-', '_').lower() == "utf_8" and
+                      item["has_bom"]):
                     item["encoding"] += "_sig"
                   if candidate.language.lower() == "japanese":
                     sorted_encodings.append(item)
