@@ -662,13 +662,20 @@ class Gen:
                 # shift_jisがgb18030（中国語）に誤判定される場合があるため、
                 # 判定した文字コード候補のなかから日本語のものを優先的に選択する。
                 for candidate in results:
+                  item = {
+                    "encoding": candidate.encoding,
+                    "has_bom": candidate.bom
+                  }
+                  if (item["encoding"].replace('-', '_').lower() == "utf_8" and
+                      item["has_bom"]):
+                    item["encoding"] += "_sig"
                   if candidate.language.lower() == "japanese":
-                    sorted_encodings.append(candidate.encoding)
+                    sorted_encodings.append(item)
                   else:
-                    not_jp.append(candidate.encoding)
+                    not_jp.append(item)
                 sorted_encodings.extend(not_jp)
-                enc = sorted_encodings[0]
-              log.debug(f'CSVファイルの文字コード [{", ".join(sorted_encodings)}]')
+                enc = sorted_encodings[0]["encoding"]
+              log.debug(f'CSVファイルの文字コード [{", ".join(item["encoding"] for item in sorted_encodings)}]')
         except Exception as e:
           log.innererr('CSVファイルの読み込みに失敗しました',e)
           return RC.ERROR
