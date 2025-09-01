@@ -1,31 +1,31 @@
 (Japanese)
 
-# pm_extra_tools: Pacemaker-2系追加パッケージ
+# pm_extra_tools: Pacemaker追加パッケージ
 
-Copyright (c) 2020-2024 Linux-HA Japan Project
+Copyright (c) 2020-2025 Linux-HA Japan Project
 
 ## はじめに
-Pacemaker-2系追加パッケージは、RHEL 8 High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
+Pacemaker追加パッケージは、RHEL High Availability Add-On (以下 HA Add-On) と組み合わせて利用する追加のツールです。
 #### パッケージ内容
 * 本パッケージには、以下のツールとリソースエージェントが含まれています。
 
-1. [pm_pcsgen](#1-pm_pcsgen): Pacemaker-2系pcs設定変換ツール
+1. [pm_pcsgen](#1-pm_pcsgen): Pacemaker pcs設定変換ツール
 2. [pgsql](#2-pgsql): PostgreSQL管理用のリソースエージェント
 3. [hulft](#3-hulft): HULFT管理用のリソースエージェント
 
 ## 動作条件・バージョン
-* 現時点のPacemaker-2系追加パッケージの最新バージョンは、pm_extra_tools-1.6-1 です。
-* 動作を確認しているOS・バージョンは、RHEL 8.9 HA Add-On / RHEL 9.3 HA Add-On です。
+* 現時点のPacemaker追加パッケージの最新バージョンは、pm_extra_tools-1.7-1 です。
+* 動作を確認しているOS・バージョンは、RHEL 8.10 HA Add-On / RHEL 9.6 HA Add-On / RHEL 10.0 HA Add-On です。
 
 ## インストール・アンインストール
 * インストール手順
 
   ```
-  # dnf install pm_extra_tools-<ver>.el8.noarch.rpm -y
+  # dnf install pm_extra_tools-<ver>.el9.noarch.rpm -y
     ： (省略)
 
   インストール済み:
-    pm_extra_tools-<ver>.el8.noarch
+    pm_extra_tools-<ver>.el9.noarch
 
   完了しました!
   ```
@@ -37,14 +37,14 @@ Pacemaker-2系追加パッケージは、RHEL 8 High Availability Add-On (以下
     ： (省略)
 
   削除しました:
-    pm_extra_tools-<ver>.el8.noarch
+    pm_extra_tools-<ver>.el9.noarch
 
   完了しました!
   ```
 
 ## 使い方詳細
 #### 1. pm_pcsgen
-Pacemaker-2系クラスタ構成の設定ファイルを作成するツールです。
+Pacemakerクラスタ構成の設定ファイルを作成するツールです。
 
 - <details><summary>設定変換ツールの概要</summary><div>
 
@@ -110,7 +110,7 @@ Pacemaker-2系クラスタ構成の設定ファイルを作成するツールで
   |表番 |表名 |列名 |設定可能な値 |
   |:---:|---|---|---|
   | 1-1 | NODE | type | attribute \| utilization |
-  | 4-1 | RESOURCES | resourceItem | Primitive \| Stonith \| Group \| **Clone</u> \| Promotable** |
+  | 4-1 | RESOURCES | resourceItem | Primitive \| Stonith \| Group \| Clone \| Promotable |
   | 7-1 | PRIMITIVE | class<br>provider<br>type <sup>[※1](#note1)</sup> | それぞれ以下のコマンドで確認できます。<br>```# pcs resource standards```<br>```# pcs resource providers```<br>```# pcs resource agents [standard[:provider]]``` |
   | | | type <sup>[※2](#note2)</sup> | options \| meta \| utilization |
   | 8-1 | STONITH | type <sup>[※1](#note1)</sup> | 以下のコマンドで確認できます。<br>```# pcs stonith list``` |
@@ -123,7 +123,7 @@ Pacemaker-2系クラスタ構成の設定ファイルを作成するツールで
 * 設定値(パラメータシートの青枠内)には、半角英数字以外の文字を使用しないこと。<br>概要欄・備考欄には、Shift-JISの拡張文字(①、②・・・、I、II・・・など)を使用しないこと。
 
 #### 2. pgsql
-PostgreSQL 及び PG-REX(レプリケーション) に対応した、PostgreSQL管理用のリソースエージェントです。<br>開発コミュニティ([https://github.com/ClusterLabs/resource-agents](https://github.com/ClusterLabs/resource-agents))の最新の修正に追随しています。
+PostgreSQL および PG-REX(レプリケーション) に対応した、PostgreSQL管理用のリソースエージェントです。<br>開発コミュニティ([https://github.com/ClusterLabs/resource-agents](https://github.com/ClusterLabs/resource-agents))の最新の修正に追随しています。
 
 * 使用するには provider部分に**linuxhajp**、type部分に**pgsql** を設定します。
 * 設定パラメータについては、RAのメタデータを参照してください。(```# pcs resource describe ocf:linuxhajp:pgsql```コマンドで確認できます。)
