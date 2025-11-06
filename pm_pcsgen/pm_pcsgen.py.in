@@ -523,7 +523,6 @@ class Gen:
       return True
 
   def fmt_bool(self,x):
-    from distutils.util import strtobool
     try:
       return 'true' if strtobool(x) else 'false'
     except Exception:
@@ -2515,6 +2514,26 @@ def pos2clm(pos):
     s = chr((pos - 1) % 26 + 65) + s
     pos = (pos - 1) // 26
   return f'列{s}'
+
+'''
+  真偽値をあらわす文字列をBool型に変換
+  distutilsパッケージ廃止に伴い、distutils.util.strtobool()を独自実装したもの
+  distutils.util.strbool()はint(1 or 0)を返すが、Bool型の方がわかりやすいため
+  Bool型を返すものとする
+  [引数]
+    val : 真偽値をあらわす文字列
+  [戻り値]
+    valが真の値('y', 'yes', 't', 'true', 'on', '1')の場合  : True
+    valが偽の値('n', 'no', 'f', 'false', 'off', '0')の場合 : False
+    ※それ以外の値の場合、例外"valueError"を起こす
+'''
+def strtobool(val):
+  s = val.lower()
+  if s in ('y', 'yes', 't', 'true', 'on', '1'):
+    return True
+  if s in ('n', 'no', 'f', 'false', 'off', '0'):
+    return False
+  raise ValueError(f"invalid truth value: '{val}'")
 
 def exit(rc):
   sys.exit(log.exit(rc))
