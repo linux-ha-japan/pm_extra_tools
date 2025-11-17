@@ -227,7 +227,9 @@ class Rhelver:
       with open(DST,'r') as f:
         vernum = re.search(r'\brelease\s+([0-9]+)(\.[0-9]+)?\s+', f.read())
         if not vernum:
-          raise Exception(f'{DST}ファイルのフォーマットが不正です')
+          raise Exception(
+            'Linuxディストリビューションのバージョンを確認できませんでした'
+          )
 
         self.rhel_ver = int(vernum.group(1))
         return True
