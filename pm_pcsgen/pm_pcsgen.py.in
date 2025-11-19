@@ -1867,19 +1867,19 @@ class Gen:
     def fmtmsg(s,cmd):
       return log.indent(f'$ {cmd}\n{s}')
     m = 'CIBファイルの出力に失敗しました'
+    get_active_cib_cmd = 'pcs cluster cib'
+    get_empty_cib_cmd = 'cibadmin --empty'
     try:
       if node and [x for x in node.getElementsByTagName(Mode.NODE.value) if x.childNodes] or self.live:
-        c = f'pcs cluster cib {outxml}'
+        c = f'{get_active_cib_cmd} {outxml}'
         log.debug(f'[コマンド_実行] {c}')
         p = subprocess.run(shlex.split(c),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if p.returncode != 0:
           log.error(f'{m}。クラスタを起動した状態で実行してください')
           log.error_r(fmtmsg(p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8),c))
           return
-        c = c.replace(f'{outxml}', rf'{self.XML_VAR}')
-        return f'{c}\n'
       else:
-        c = 'cibadmin --empty'
+        c = f'{get_empty_cib_cmd}'
         log.debug(f'[コマンド_実行] {c}')
         p = subprocess.run(shlex.split(c),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if p.returncode != 0:
@@ -1888,7 +1888,9 @@ class Gen:
           return
         with open(outxml,"w",encoding=U8) as f:
           f.write(p.stdout.decode(U8))
-        return f'{c} > {self.XML_VAR}\n'
+      # SHファイルに出力するローカルcib.xml取得用コマンドは、
+      # RHEL バージョンや実行条件によらず、常に pcs cluster cib コマンド
+      return f'{get_active_cib_cmd} {self.XML_VAR}\n'
     except Exception as e:
       log.innererr(f'{m}',e)
 
