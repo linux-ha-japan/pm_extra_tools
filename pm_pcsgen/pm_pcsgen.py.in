@@ -2503,11 +2503,13 @@ class Gen:
         # -l オプションが指定された場合には、
         # ノード情報をアクティブCIB(pcs cluster cib)から取得
         # (クラスタ起動必須)
+        log.debug('アクティブCIB からノード情報を取得し、XMLに追加します')
         if not self.get_active_nodes_elem(nodes_doc):
           return False
       else:
         # ノード情報をcorosync.conf(pcs cluster config show)から取得
         # (クラスタ起動不要)
+        log.debug('corosync.conf からノード情報を取得し、XMLに追加します')
         clnodes : dict[str, str] = {} # [nodeid, uname]
         if not self.get_cluster_nodes(clnodes):
           return False
@@ -2547,7 +2549,7 @@ class Gen:
 
       # ローカルXMLファイルを書き換え
       with open(outxml, 'w', encoding=U8) as f:
-        new_cib = doc.toxml() + '\n'
+        new_cib = doc.documentElement.toxml() + '\n'
         f.write(new_cib)
       return True
     except Exception as e:
