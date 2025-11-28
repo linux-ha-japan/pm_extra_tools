@@ -1871,7 +1871,7 @@ class Gen:
     get_active_cib_cmd = 'pcs cluster cib'
     get_empty_cib_cmd = 'cibadmin --empty'
     try:
-      # XMLファイルのベースとなるローカルcib.xml取得方法
+      # CIBファイルのベースとなるローカルcib.xml取得方法
       #  - RHEL 10 以降の場合
       #    常に cibadmin --empty コマンドで取得
       #  - RHEL 9 以前の場合
@@ -1928,7 +1928,7 @@ class Gen:
     # RHEL 10 以降の場合、空のローカルcib.xmlにノード情報をマージする
     if rhelver.rhel_ver >= 10:
       if not self.replace_nodes_elem(self.outxml):
-        # マージ処理中にエラーが発生した場合、XMLファイルを削除する
+        # マージ処理中にエラーが発生した場合、CIBファイルを削除する
         if os.path.exists(self.outxml):
           os.remove(self.outxml)
         return
@@ -2373,7 +2373,7 @@ class Gen:
       #   : (snip)
       # }
       c = 'pcs cluster config show --output-format=json'
-      m = 'ノード情報の取得に失敗しました'
+      m = 'corosync.confからのノード情報の取得に失敗しました'
       log.debug(f'[コマンド_実行] {c}')
       p = subprocess.run(shlex.split(c),
                          stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -2484,17 +2484,17 @@ class Gen:
       return False
 
   '''
-    ローカルXMLファイルにノード情報を追加する
+    CIBファイルにノード情報を追加する
     (空の<nodes/>要素を子要素<node>を持つものに置き換える)
     [引数]
-      outxml  : ローカルXMLファイルパス
+      outxml  : CIBファイルパス
     [戻り値]
       True  : OK
       False : NG
   '''
   def replace_nodes_elem(self, outxml):
     try:
-      log.debug('[ XMLへのノード情報追加 ]処理を開始します')
+      log.debug('[ CIBへのノード情報追加 ]処理を開始します')
 
       from xml.dom.minidom import Document
       nodes_doc = Document() # 追加するノード情報格納用Document
@@ -2503,13 +2503,13 @@ class Gen:
         # -l オプションが指定された場合には、
         # ノード情報をアクティブCIB(pcs cluster cib)から取得
         # (クラスタ起動必須)
-        log.debug('アクティブCIB からノード情報を取得し、XMLに追加します')
+        log.debug('アクティブCIBから取得したノード情報をCIBファイルに追加します')
         if not self.get_active_nodes_elem(nodes_doc):
           return False
       else:
         # ノード情報をcorosync.conf(pcs cluster config show)から取得
         # (クラスタ起動不要)
-        log.debug('corosync.conf からノード情報を取得し、XMLに追加します')
+        log.debug('corosync.confから取得したノード情報CIBファイルに追加します')
         clnodes : dict[str, str] = {} # [nodeid, uname]
         if not self.get_cluster_nodes(clnodes):
           return False
@@ -2519,17 +2519,17 @@ class Gen:
         log.error(f'[{outxml}]  が見つかりません')
         return False
 
-      # ローカルXMLファイルの読み込み
+      # CIBファイルの読み込み
       from xml.dom.minidom import parse, Node
       doc = parse(outxml)
       nodes_list = doc.getElementsByTagName('nodes')
       if not nodes_list:
         log.error(f'[{outxml}] にノード情報がありません')
         return False
-      nodes_elem = nodes_list[0] # ローカルXMLの<nodes>要素
+      nodes_elem = nodes_list[0] # CIBファイルの<nodes>要素
 
-      # ローカルXMLの<nodes>の子要素に<node>があれば終了(追加処理不要)
-      # ただし、ローカルXMLは直前に get_cib() 内で
+      # CIBファイルの<nodes>の子要素に<node>があれば終了(追加処理不要)
+      # ただし、CIBファイルは直前に get_cib() 内で
       # cibadmin --empty コマンドにより取得しており、
       # この条件に該当することはないと思われる
       for child in nodes_elem.childNodes:
@@ -2538,7 +2538,7 @@ class Gen:
           return True
 
       # 自作した<nodes>要素(nodes_doc)を
-      # ローカルXML(doc)の<nodes>要素(nodes_elem)に追加
+      # CIBファイル(doc)の<nodes>要素(nodes_elem)に追加
       # (<nodes>要素を、子要素以降含め丸ごと置き換え)
       new_nodes_list = nodes_doc.getElementsByTagName('nodes')
       new_nodes_elem = new_nodes_list[0]
@@ -2547,13 +2547,13 @@ class Gen:
       parent = nodes_elem.parentNode
       parent.replaceChild(imported, nodes_elem)
 
-      # ローカルXMLファイルを書き換え
+      # CIBファイルを書き換え
       with open(outxml, 'w', encoding=U8) as f:
         new_cib = doc.documentElement.toxml() + '\n'
         f.write(new_cib)
       return True
     except Exception as e:
-      log.innererr('XMLへのノード情報追加処理に失敗しました',e)
+      log.innererr('CIBファイルへのノード情報追加処理に失敗しました',e)
       return
 
 class Log:
