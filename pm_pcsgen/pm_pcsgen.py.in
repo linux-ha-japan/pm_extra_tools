@@ -2384,17 +2384,17 @@ class Gen:
       # ノード情報(nameとnodeid)の一覧を作成
       import json
       cluster_info = json.loads(p.stdout)
-      if cluster_info.get('nodes') is None:
-          # nodesがない場合のエラーチェック
+      nodes = cluster_info.get('nodes')
+      if not nodes:
           log.error(f'{m}。クラスタ情報内にノード情報がありません')
           return False
-      for node in cluster_info.get('nodes'):
+      for node in nodes:
         node_name = node.get('name')
         node_id = node.get('nodeid')
-        if node_name is None:
+        if not node_name:
           log.error(f'{m}。ノード名が取得できません')
           return False
-        if node_id is None:
+        if not node_id:
           log.error(f'{m}。ノードIDが取得できません')
           return False
         clnodes[node_id] = node_name
