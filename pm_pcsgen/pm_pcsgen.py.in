@@ -2509,7 +2509,7 @@ class Gen:
       else:
         # ノード情報をcorosync.conf(pcs cluster config show)から取得
         # (クラスタ起動不要)
-        log.debug('corosync.confから取得したノード情報CIBファイルに追加します')
+        log.debug('corosync.confから取得したノード情報をCIBファイルに追加します')
         clnodes : dict[str, str] = {} # [nodeid, uname]
         if not self.get_cluster_nodes(clnodes):
           return False
