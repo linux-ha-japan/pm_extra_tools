@@ -2432,7 +2432,7 @@ class Gen:
       if not active_nodes_list:
         log.error(f'{m}。アクティブCIBにノード情報がありません')
         return False
-      output = '\n'.join(node.toxml() for node in active_nodes_list)
+      output = '\n'.join(nodes.toxml() for nodes in active_nodes_list)
       log.debug1(f'取得したノード情報を出力します\n{output}')
       active_nodes = active_nodes_list[0]
 
