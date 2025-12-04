@@ -2379,11 +2379,15 @@ class Gen:
                          stdout=subprocess.PIPE,stderr=subprocess.PIPE)
       if p.returncode != 0:
         log.error(f'{m}')
+        output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
+        log.error_r(log.indent(f'$ {c}\n{output}'))
         return False
 
       # ノード情報(nameとnodeid)の一覧を作成
       import json
       cluster_info = json.loads(p.stdout)
+      output = json.dumps(cluster_info)
+      log.debug1(f'取得したクラスタ情報を出力します\n{output}')
       nodes = cluster_info.get('nodes')
       if not nodes:
           log.error(f'{m}。クラスタ情報内にノード情報がありません')
@@ -2391,12 +2395,6 @@ class Gen:
       for node in nodes:
         node_name = node.get('name')
         node_id = node.get('nodeid')
-        if not node_name:
-          log.error(f'{m}。ノード名が取得できません')
-          return False
-        if not node_id:
-          log.error(f'{m}。ノードIDが取得できません')
-          return False
         clnodes[node_id] = node_name
       return True
     except Exception as e:
@@ -2420,6 +2418,8 @@ class Gen:
                          stdout=subprocess.PIPE,stderr=subprocess.PIPE)
       if p.returncode != 0:
         log.error(f'{m}。クラスタを起動した状態で実行してください')
+        output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
+        log.error_r(log.indent(f'$ {c}\n{output}'))
         return False
 
       # アクティブCIBから<nodes>要素を取得
@@ -2429,6 +2429,8 @@ class Gen:
       if not active_nodes_list:
         log.error(f'{m}。アクティブCIBにノード情報がありません')
         return False
+      output = '\n'.join(node.toxml() for node in active_nodes_list)
+      log.debug1(f'取得したノード情報を出力します\n{output}')
       active_nodes = active_nodes_list[0]
 
       # アクティブCIBの<nodes>サブツリーをnodes_doc用にクローン
@@ -2478,6 +2480,8 @@ class Gen:
       head = indent_base
       nodes_elem.appendChild(nodes_doc.createTextNode(head))
       nodes_doc.appendChild(nodes_elem)
+      output = nodes_doc.documentElement.toxml()
+      log.debug1(f'作成した<nodes>要素を出力します\n{output}')
       return True
     except Exception as e:
       log.innererr('ノード情報のXML化に失敗しました',e)
