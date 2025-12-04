@@ -2395,6 +2395,9 @@ class Gen:
       for node in nodes:
         node_name = node.get('name')
         node_id = node.get('nodeid')
+        if not node_id.isdigit():
+          log.error('corosync.confのnodeidに整数以外の値が設定されています')
+          return False
         clnodes[node_id] = node_name
       return True
     except Exception as e:
