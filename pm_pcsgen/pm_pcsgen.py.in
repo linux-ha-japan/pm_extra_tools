@@ -251,6 +251,7 @@ class Gen:
   XML_VAR = '"${xmlfile}"'
 
   def __init__(self):
+    self.has_node_settings = False
     if not self.parse_option():
       exit(RC.ERROR)
     if not self.parse_config():
@@ -1870,7 +1871,22 @@ class Gen:
     get_active_cib_cmd = 'pcs cluster cib'
     get_empty_cib_cmd = 'cibadmin --empty'
     try:
-      if node and [x for x in node.getElementsByTagName(Mode.NODE.value) if x.childNodes] or self.live:
+      # CIBファイルのベースとなるローカルcib.xml取得方法
+      #  - RHEL 10 以降の場合
+      #    常に cibadmin --empty コマンドで取得
+      #  - RHEL 9 以前の場合
+      #    クラスタ・ノード表に値が設定されている、もしくは
+      #    -l オプションが指定されている場合には
+      #    pcs cluster cib コマンドで取得、
+      #    それ以外の場合は cibadmin --empty コマンドで取得
+      self.has_node_settings = bool(
+        node
+        and any(
+          x.childNodes
+          for x in node.getElementsByTagName(Mode.NODE.value)
+        )
+      )
+      if rhelver.rhel_ver <= 9 and (self.has_node_settings or self.live):
         c = f'{get_active_cib_cmd} {outxml}'
         log.debug(f'[コマンド_実行] {c}')
         p = subprocess.run(shlex.split(c),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -1908,6 +1924,15 @@ class Gen:
     cib = self.get_cib(self.outxml,self.root)
     if not cib:
       return
+
+    # RHEL 10 以降の場合、空のローカルcib.xmlにノード情報をマージする
+    if rhelver.rhel_ver >= 10:
+      if not self.replace_nodes_elem(self.outxml):
+        # マージ処理中にエラーが発生した場合、CIBファイルを削除する
+        if os.path.exists(self.outxml):
+          os.remove(self.outxml)
+        return
+
     s = [
       shebang,
       xmlfilename,
@@ -2314,6 +2339,229 @@ class Gen:
     return f"'{clm}'列の「{val}」は無効な値です。有効な値は [{'/'.join(opts)}] です"
   def msg_disca_data(self,where):
     return f'{where}に値が設定されています'
+
+  '''
+    クラスタのノード情報(nodeid, name)を取得する
+    [引数]
+      clnodes : クラスタのノード情報を格納するdict
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def get_cluster_nodes(self, clnodes):
+    try:
+      # クラスタ設定情報をjson形式で取得
+      # pcs cluster config show --output-format=json
+      # {
+      #   "cluster_name": "my_cluster",
+      #   "cluster_uuid": "89dcafe7f438415c9e8d46cf8037b261",
+      #   : (snip)
+      #   "nodes": [
+      #     {
+      #       "name": "rh10-01", "nodeid": "1", "addrs": [
+      #         {"addr": "192.168.106.179", "link": "0", "type": "IPv4"},
+      #         {"addr": "192.168.107.179", "link": "1", "type": "IPv4"}
+      #        ]
+      #     },
+      #     {
+      #       "name": "rh10-02", "nodeid": "2", "addrs": [
+      #         {"addr": "192.168.106.180", "link": "0", "type": "IPv4"},
+      #         {"addr": "192.168.107.180", "link": "1", "type": "IPv4"}
+      #       ]
+      #     }
+      #   ],
+      #   : (snip)
+      # }
+      c = 'pcs cluster config show --output-format=json'
+      m = 'corosync.confからのノード情報の取得に失敗しました'
+      log.debug(f'[コマンド_実行] {c}')
+      p = subprocess.run(shlex.split(c),
+                         stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+      if p.returncode != 0:
+        log.error(f'{m}')
+        output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
+        log.error_r(log.indent(f'$ {c}\n{output}'))
+        return False
+
+      # ノード情報(nameとnodeid)の一覧を作成
+      import json
+      cluster_info = json.loads(p.stdout)
+      output = json.dumps(cluster_info)
+      log.debug1(f'取得したクラスタ情報を出力します\n{output}')
+      nodes = cluster_info.get('nodes')
+      if not nodes:
+          log.error(f'{m}。クラスタ情報内にノード情報がありません')
+          return False
+      for node in nodes:
+        node_name = node.get('name')
+        node_id = node.get('nodeid')
+        if not node_id.isdigit():
+          log.error('corosync.confのnodeidに整数以外の値が設定されています')
+          return False
+        clnodes[node_id] = node_name
+      return True
+    except Exception as e:
+      log.innererr(f'{m}',e)
+      return False
+
+  '''
+    アクティブCIBからノード情報(<nodes>要素)を取得する
+    [引数]
+      nodes_doc : ノード情報を格納するDocument
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def get_active_nodes_elem(self, nodes_doc):
+    try:
+      c = 'pcs cluster cib'
+      m = 'アクティブCIBからのノード情報の取得に失敗しました'
+      log.debug(f'[コマンド_実行] {c}')
+      p = subprocess.run(shlex.split(c),
+                         stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+      if p.returncode != 0:
+        log.error(f'{m}。クラスタを起動した状態で実行してください')
+        output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
+        log.error_r(log.indent(f'$ {c}\n{output}'))
+        return False
+
+      # アクティブCIBから<nodes>要素を取得
+      from xml.dom.minidom import parseString
+      activecib_doc = parseString(p.stdout)
+      active_nodes_list = activecib_doc.getElementsByTagName('nodes')
+      if not active_nodes_list:
+        log.error(f'{m}。アクティブCIBにノード情報がありません')
+        return False
+      output = '\n'.join(nodes.toxml() for nodes in active_nodes_list)
+      log.debug1(f'取得したノード情報を出力します\n{output}')
+      active_nodes = active_nodes_list[0]
+
+      # アクティブCIBの<nodes>サブツリーをnodes_doc用にクローン
+      imported = nodes_doc.importNode(active_nodes, deep=True)
+      nodes_doc.appendChild(imported)
+      return True
+    except Exception as e:
+      log.innererr(f'{m}',e)
+      return False
+
+  '''
+    ノード情報のXML(<nodes>要素)を作成する
+    [引数]
+      clnodes : クラスタのノード情報を保持しているdict
+      nodes_doc : ノード情報のXMLを格納するDocument
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def create_nodes_elem(self, clnodes, nodes_doc):
+    try:
+      # <nodes>要素作成
+      nodes_elem = nodes_doc.createElement('nodes')
+      # 整形 (<nodes>の直後に改行)
+      nodes_elem.appendChild(nodes_doc.createTextNode('\n'))
+
+      # <nodes/>に<node>要素を追加
+      #
+      # <nodes>
+      #   <node id="1" uname="node01"/> ★
+      #   <node id="2" uname="node02"/> ★
+      # </nodes>
+      indent_base = '    ' # <nodes>要素のインデント
+      indent_child = '  '  # <nodes>要素を起点とした<node>要素のインデント
+      for node_id in sorted(clnodes, key=int):
+        node_name = clnodes[node_id]
+        # インデント整形(<node>の前に空文字列)
+        head = indent_base + indent_child
+        nodes_elem.appendChild(nodes_doc.createTextNode(head))
+        # <node>追加
+        e = nodes_doc.createElement('node')
+        e.setAttribute('id', str(node_id))
+        e.setAttribute('uname', node_name)
+        nodes_elem.appendChild(e)
+        nodes_elem.appendChild(nodes_doc.createTextNode('\n'))
+      # インデント整形 (</nodes>の前に空文字列)
+      head = indent_base
+      nodes_elem.appendChild(nodes_doc.createTextNode(head))
+      nodes_doc.appendChild(nodes_elem)
+      output = nodes_doc.documentElement.toxml()
+      log.debug1(f'作成した<nodes>要素を出力します\n{output}')
+      return True
+    except Exception as e:
+      log.innererr('ノード情報のXML化に失敗しました',e)
+      return False
+
+  '''
+    CIBファイルにノード情報を追加する
+    (空の<nodes/>要素を子要素<node>を持つものに置き換える)
+    [引数]
+      outxml  : CIBファイルパス
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def replace_nodes_elem(self, outxml):
+    try:
+      log.debug('[ CIBへのノード情報追加 ]処理を開始します')
+
+      from xml.dom.minidom import Document
+      nodes_doc = Document() # 追加するノード情報格納用Document
+      if self.has_node_settings or self.live:
+        # クラスタ・ノード表に値が設定されている場合、もしくは
+        # -l オプションが指定された場合には、
+        # ノード情報をアクティブCIB(pcs cluster cib)から取得
+        # (クラスタ起動必須)
+        log.debug('アクティブCIBから取得したノード情報をCIBファイルに追加します')
+        if not self.get_active_nodes_elem(nodes_doc):
+          return False
+      else:
+        # ノード情報をcorosync.conf(pcs cluster config show)から取得
+        # (クラスタ起動不要)
+        log.debug('corosync.confから取得したノード情報をCIBファイルに追加します')
+        clnodes : dict[str, str] = {} # [nodeid, uname]
+        if not self.get_cluster_nodes(clnodes):
+          return False
+        if not self.create_nodes_elem(clnodes, nodes_doc):
+          return False
+      if not os.path.isfile(outxml):
+        log.error(f'[{outxml}]  が見つかりません')
+        return False
+
+      # CIBファイルの読み込み
+      from xml.dom.minidom import parse, Node
+      doc = parse(outxml)
+      nodes_list = doc.getElementsByTagName('nodes')
+      if not nodes_list:
+        log.error(f'[{outxml}] にノード情報がありません')
+        return False
+      nodes_elem = nodes_list[0] # CIBファイルの<nodes>要素
+
+      # CIBファイルの<nodes>の子要素に<node>があれば終了(追加処理不要)
+      # ただし、CIBファイルは直前に get_cib() 内で
+      # cibadmin --empty コマンドにより取得しており、
+      # この条件に該当することはないと思われる
+      for child in nodes_elem.childNodes:
+        if child.nodeType == Node.ELEMENT_NODE and child.tagName == 'node':
+          log.info('ノード情報がすでに存在するため、追加処理を終了します')
+          return True
+
+      # 自作した<nodes>要素(nodes_doc)を
+      # CIBファイル(doc)の<nodes>要素(nodes_elem)に追加
+      # (<nodes>要素を、子要素以降含め丸ごと置き換え)
+      new_nodes_list = nodes_doc.getElementsByTagName('nodes')
+      new_nodes_elem = new_nodes_list[0]
+      # nodes_docの<nodes>サブツリーをdoc用にクローン
+      imported = doc.importNode(new_nodes_elem, deep=True)
+      parent = nodes_elem.parentNode
+      parent.replaceChild(imported, nodes_elem)
+
+      # CIBファイルを書き換え
+      with open(outxml, 'w', encoding=U8) as f:
+        new_cib = doc.documentElement.toxml() + '\n'
+        f.write(new_cib)
+      return True
+    except Exception as e:
+      log.innererr('CIBファイルへのノード情報追加処理に失敗しました',e)
+      return
 
 class Log:
   LOGLV = {
