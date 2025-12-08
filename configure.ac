@@ -13,7 +13,7 @@ AC_PREREQ([2.69])
 #                     ]))
 #
 #AC_INIT(pm_extra_tools, [CURRENT_VERSION])
-m4_define([CURRENT_VERSION], [1.7])
+m4_define([CURRENT_VERSION], [1.8dev])
 AC_INIT(pm_extra_tools, [CURRENT_VERSION])
 AM_INIT_AUTOMAKE
 
