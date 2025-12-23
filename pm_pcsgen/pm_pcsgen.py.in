@@ -2480,7 +2480,8 @@ class Gen:
       elem_name_doc.appendChild(imported)
       return True
     except Exception as e:
-      log.innererr('アクティブCIBからの要素取得処理に失敗しました',e)
+      log.innererr(
+        f'アクティブCIBからの <{elem_name}> 要素取得処理に失敗しました',e)
       return False
 
   '''
@@ -2513,7 +2514,8 @@ class Gen:
       parent.replaceChild(imported, cibfile_elem)
       return True
     except Exception as e:
-      log.innererr('CIBファイル内の要素置換処理に失敗しました',e)
+      log.innererr(f'CIBファイル内の <{elem_name}> 要素置換処理に失敗しました',
+                   e)
       return False
 
   '''
