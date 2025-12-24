@@ -1925,9 +1925,10 @@ class Gen:
     if not cib:
       return
 
-    # RHEL 10 以降の場合、空のローカルcib.xmlにノード情報をマージする
+    # RHEL 10 以降の場合、
+    # 空のローカルcib.xmlにクラスタプロパティ情報とノード情報をマージする
     if rhelver.rhel_ver >= 10:
-      if not self.replace_nodes_elem(self.outxml):
+      if not self.replace_elems_in_cibfile(self.outxml):
         # マージ処理中にエラーが発生した場合、CIBファイルを削除する
         if os.path.exists(self.outxml):
           os.remove(self.outxml)
@@ -2405,46 +2406,6 @@ class Gen:
       return False
 
   '''
-    アクティブCIBからノード情報(<nodes>要素)を取得する
-    [引数]
-      nodes_doc : ノード情報を格納するDocument
-    [戻り値]
-      True  : OK
-      False : NG
-  '''
-  def get_active_nodes_elem(self, nodes_doc):
-    try:
-      c = 'pcs cluster cib'
-      m = 'アクティブCIBからのノード情報の取得に失敗しました'
-      log.debug(f'[コマンド_実行] {c}')
-      p = subprocess.run(shlex.split(c),
-                         stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-      if p.returncode != 0:
-        log.error(f'{m}。クラスタを起動した状態で実行してください')
-        output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
-        log.error_r(log.indent(f'$ {c}\n{output}'))
-        return False
-
-      # アクティブCIBから<nodes>要素を取得
-      from xml.dom.minidom import parseString
-      activecib_doc = parseString(p.stdout)
-      active_nodes_list = activecib_doc.getElementsByTagName('nodes')
-      if not active_nodes_list:
-        log.error(f'{m}。アクティブCIBにノード情報がありません')
-        return False
-      output = '\n'.join(nodes.toxml() for nodes in active_nodes_list)
-      log.debug1(f'取得したノード情報を出力します\n{output}')
-      active_nodes = active_nodes_list[0]
-
-      # アクティブCIBの<nodes>サブツリーをnodes_doc用にクローン
-      imported = nodes_doc.importNode(active_nodes, deep=True)
-      nodes_doc.appendChild(imported)
-      return True
-    except Exception as e:
-      log.innererr(f'{m}',e)
-      return False
-
-  '''
     ノード情報のXML(<nodes>要素)を作成する
     [引数]
       clnodes : クラスタのノード情報を保持しているdict
@@ -2491,77 +2452,156 @@ class Gen:
       return False
 
   '''
-    CIBファイルにノード情報を追加する
-    (空の<nodes/>要素を子要素<node>を持つものに置き換える)
+    アクティブCIBから指定の要素を取得し、指定のDocumentに保持する
+    [引数]
+      elem_name      : 取得したい要素名
+      elem_name_doc  : 指定の要素の内容を格納するDocument
+      activecib_doc : アクティブCIB内の情報を保持しているDocument
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def get_active_elem(self, elem_name, elem_name_doc, activecib_doc):
+    try:
+      log.debug(f'アクティブCIBから <{elem_name}> 要素を取得します')
+      active_elem_name_list = activecib_doc.getElementsByTagName(elem_name)
+      if not active_elem_name_list:
+        log.error(f'アクティブCIBに <{elem_name}> 要素がありません')
+        return False
+      output = '\n'.join(
+                 tag.toxml() for tag in active_elem_name_list
+               )
+      log.debug1(f'取得した <{elem_name}> 要素を出力します\n{output}')
+      active_elem_name = active_elem_name_list[0]
+
+      # アクティブCIBの<{elem_name}>サブツリーをクローンして
+      # 当該要素の内容を指定のDocument(elem_name_doc)に保持
+      imported = elem_name_doc.importNode(active_elem_name, deep=True)
+      elem_name_doc.appendChild(imported)
+      return True
+    except Exception as e:
+      log.innererr(
+        f'アクティブCIBからの <{elem_name}> 要素取得処理に失敗しました',e)
+      return False
+
+  '''
+    CIBファイル内の指定の要素を、指定のDocumentの内容に置換する
+    [引数]
+      elem_name    : 置換対象の要素名
+      elem_doc     : 置換する内容を保持したDocument
+      cibfile_doc : CIBファイル内の情報を保持したDocument
+    [戻り値]
+      True  : OK
+      False : NG
+  '''
+  def replace_cibfile_elem(self, elem_name, elem_doc, cibfile_doc):
+    try:
+      log.debug(f'CIBファイルの <{elem_name}> 要素を置換します')
+      # CIBファイルの読み込み
+      cibfile_elem_name_list = cibfile_doc.getElementsByTagName(elem_name)
+      if not cibfile_elem_name_list:
+        log.error(f'CIBファイルに <{elem_name}> 要素がありません')
+        return False
+      cibfile_elem = cibfile_elem_name_list[0] # CIBファイルの<{elem_name}>要素
+
+      # CIBファイル(cibfile_doc)内の<{elem_name}>要素(=cibfile_elem)を
+      # 指定された要素<{elem_name}>を保持しているDocument(elem_doc)に置換
+      # (子要素以降含め丸ごと置き換え)
+      new_elem_name_list = elem_doc.getElementsByTagName(elem_name)
+      new_elem = new_elem_name_list[0]
+      imported = cibfile_doc.importNode(new_elem, deep=True)
+      parent = cibfile_elem.parentNode
+      parent.replaceChild(imported, cibfile_elem)
+      return True
+    except Exception as e:
+      log.innererr(f'CIBファイル内の <{elem_name}> 要素置換処理に失敗しました',
+                   e)
+      return False
+
+  '''
+    CIBファイルにノード情報とクラスタプロパティ情報を追加する
+    (CIBファイル内の空の要素を、情報設定済みの要素に置き換える)
     [引数]
       outxml  : CIBファイルパス
     [戻り値]
       True  : OK
       False : NG
   '''
-  def replace_nodes_elem(self, outxml):
+  def replace_elems_in_cibfile(self, outxml):
     try:
-      log.debug('[ CIBへのノード情報追加 ]処理を開始します')
+      log.debug('[ CIBへの情報追加 ]処理を開始します')
 
-      from xml.dom.minidom import Document
+      if not os.path.isfile(outxml):
+        log.error(f'[{outxml}]  が見つかりません')
+        return False
+
+      from xml.dom.minidom import Document, parseString, parse, Node
+      cibfile_doc = parse(outxml)    # CIBファイル用Document
       nodes_doc = Document() # 追加するノード情報格納用Document
+      # 以下の2つのDocumentはアクティブCIB情報とマージする場合のみ使用
+      activecib_doc = None   # アクティブCIB用Document
+      crm_config_doc = None  # 追加するクラスタプロパティ情報格納用Document
+
       if self.has_node_settings or self.live:
         # クラスタ・ノード表に値が設定されている場合、もしくは
         # -l オプションが指定された場合には、
-        # ノード情報をアクティブCIB(pcs cluster cib)から取得
+        # クラスタプロパティ情報とノード情報を
+        # アクティブCIB(pcs cluster cib)から取得
         # (クラスタ起動必須)
-        log.debug('アクティブCIBから取得したノード情報をCIBファイルに追加します')
-        if not self.get_active_nodes_elem(nodes_doc):
+        log.debug(
+          'アクティブCIBから取得したノード情報とクラスタプロパティ情報を' + 
+          'CIBファイルに追加します'
+        )
+        c = 'pcs cluster cib'
+        m = 'アクティブCIBからの情報取得に失敗しました'
+        log.debug(f'[コマンド_実行] {c}')
+        p = subprocess.run(shlex.split(c),
+                           stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if p.returncode != 0:
+          log.error(f'{m}。クラスタを起動した状態で実行してください')
+          output = p.stderr.decode(U8) if p.stderr else p.stdout.decode(U8)
+          log.error_r(log.indent(f'$ {c}\n{output}'))
+          return False
+        activecib_doc = parseString(p.stdout)
+        crm_config_doc = Document()
+
+        # アクティブCIBから<crm_config>要素を取得
+        if not self.get_active_elem('crm_config',
+                                    crm_config_doc, activecib_doc):
+          return False
+
+        # アクティブCIBから<nodes>要素を取得
+        if not self.get_active_elem('nodes', nodes_doc, activecib_doc):
           return False
       else:
         # ノード情報をcorosync.conf(pcs cluster config show)から取得
         # (クラスタ起動不要)
-        log.debug('corosync.confから取得したノード情報をCIBファイルに追加します')
+        log.debug(
+          'corosync.confから取得したノード情報をCIBファイルに追加します'
+        )
         clnodes : dict[str, str] = {} # [nodeid, uname]
         if not self.get_cluster_nodes(clnodes):
           return False
         if not self.create_nodes_elem(clnodes, nodes_doc):
           return False
-      if not os.path.isfile(outxml):
-        log.error(f'[{outxml}]  が見つかりません')
+
+      # CIBファイル内の <crm_config> 要素置き換え
+      if crm_config_doc is not None:
+        if not self.replace_cibfile_elem(
+                'crm_config', crm_config_doc, cibfile_doc):
+          return False
+      # CIBファイル内の <nodes> 要素置き換え
+      if not self.replace_cibfile_elem('nodes', nodes_doc, cibfile_doc):
         return False
-
-      # CIBファイルの読み込み
-      from xml.dom.minidom import parse, Node
-      doc = parse(outxml)
-      nodes_list = doc.getElementsByTagName('nodes')
-      if not nodes_list:
-        log.error(f'[{outxml}] にノード情報がありません')
-        return False
-      nodes_elem = nodes_list[0] # CIBファイルの<nodes>要素
-
-      # CIBファイルの<nodes>の子要素に<node>があれば終了(追加処理不要)
-      # ただし、CIBファイルは直前に get_cib() 内で
-      # cibadmin --empty コマンドにより取得しており、
-      # この条件に該当することはないと思われる
-      for child in nodes_elem.childNodes:
-        if child.nodeType == Node.ELEMENT_NODE and child.tagName == 'node':
-          log.info('ノード情報がすでに存在するため、追加処理を終了します')
-          return True
-
-      # 自作した<nodes>要素(nodes_doc)を
-      # CIBファイル(doc)の<nodes>要素(nodes_elem)に追加
-      # (<nodes>要素を、子要素以降含め丸ごと置き換え)
-      new_nodes_list = nodes_doc.getElementsByTagName('nodes')
-      new_nodes_elem = new_nodes_list[0]
-      # nodes_docの<nodes>サブツリーをdoc用にクローン
-      imported = doc.importNode(new_nodes_elem, deep=True)
-      parent = nodes_elem.parentNode
-      parent.replaceChild(imported, nodes_elem)
 
       # CIBファイルを書き換え
       with open(outxml, 'w', encoding=U8) as f:
-        new_cib = doc.documentElement.toxml() + '\n'
+        new_cib = cibfile_doc.documentElement.toxml() + '\n'
         f.write(new_cib)
       return True
     except Exception as e:
-      log.innererr('CIBファイルへのノード情報追加処理に失敗しました',e)
-      return
+      log.innererr('CIBファイルへの情報追加処理に失敗しました',e)
+      return False
 
 class Log:
   LOGLV = {
