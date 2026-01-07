@@ -20,8 +20,8 @@ Release:       %{release}
 License:       GPLv2
 Group:         Applications
 Vendor:        Linux-HA Japan
-Url:           https://ja.osdn.net/projects/linux-ha/
-Packager:      Linux-HA Japan <https://ja.osdn.net/projects/linux-ha/>
+Url:           https://linux-ha-japan.github.io/
+Packager:      Linux-HA Japan <https://linux-ha-japan.github.io/>
 
 Source:        %{name}-%{version}.tar.gz
 Requires:      platform-python
